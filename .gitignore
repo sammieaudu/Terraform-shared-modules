@@ -1,7 +1,2 @@
-**/.terraform
-**/.terraform.lock.hcl
-**/.terraform.lock.hcl.lock
-**/.terraform.lock.hcl.lock.lock
-**/.terraform.lock.hcl.lock.lock.lock
-**/.terraform.lock.hcl.lock.lock.lock.lock
-**/.terraform.lock.hcl.lock.lock.lock.lock.lock
+***/***/.terraform
+**/**/.terraform.lock.hcl
