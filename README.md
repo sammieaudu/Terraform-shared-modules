@@ -1,6 +1,5 @@
 #Terraform
 
-bash ```
 enterprise-terraform-structure/
 ├── modules/
 │   ├── network/                # VPC, subnets, routing, etc.
@@ -45,4 +44,3 @@ enterprise-terraform-structure/
 │       └── README.md
 └── docs/
     └── architecture.md       # Documentation of overall infrastructure design and module usage
-```
