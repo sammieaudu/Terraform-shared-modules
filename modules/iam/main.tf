@@ -1,86 +1,94 @@
-resource "aws_iam_role" "eks_cluster" {
-  name = "${var.name}-eks-cluster-role"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Effect = "Allow",
-      Principal = {
-        Service = "eks.amazonaws.com"
-      },
-      Action = "sts:AssumeRole"
-    }]
-  })
-  tags = var.tags
+############
+# IAM users
+############
+module "user_developers" {
+  source = "terraform-aws-modules/iam/aws//modules/iam-user"
+  version = "5.0.0"
+
+  count = length(var.iam_developerUser_names)
+
+  name = "${var.iam_developerUser_names[count.index]}"
+  path = "/developers/"
+
+  create_iam_user_login_profile = true
+  create_iam_access_key         = true
+
+  tags = local.tags
 }
 
-resource "aws_iam_role_policy_attachment" "eks_cluster_AmazonEKSClusterPolicy" {
-  role       = aws_iam_role.eks_cluster.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+module "user_devops" {
+  source = "terraform-aws-modules/iam/aws//modules/iam-user"
+  version = "5.0.0"
+
+  count = length(var.iam_devOpsUser_names)
+
+  name = "${var.iam_devOpsUser_names[count.index]}"
+  path = "/devops/"
+
+  create_iam_user_login_profile = true
+  create_iam_access_key         = true
+
+  tags = local.tags
 }
 
-resource "aws_iam_role" "eks_node_group" {
-  name = "${var.name}-eks-node-group-role"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Effect = "Allow",
-      Principal = {
-        Service = "ec2.amazonaws.com"
-      },
-      Action = "sts:AssumeRole"
-    }]
-  })
-  tags = var.tags
+#####################################################################################
+# IAM group for DevOps with full Administrator access
+#####################################################################################
+module "iam_group_devops" {
+  source = "terraform-aws-modules/iam/aws//modules/iam-group-with-policies"
+
+  name = "devops"
+
+  group_users = module.user_devops[*].iam_user_name
+
+  custom_group_policy_arns = var.devops_cgp_arn
+
+  depends_on = [ module.user_devops ]
 }
 
-resource "aws_iam_role_policy_attachment" "eks_node_group_policies" {
-  count      = length(var.node_group_policy_arns)
-  role       = aws_iam_role.eks_node_group.name
-  policy_arn = var.node_group_policy_arns[count.index]
+module "iam_group_devops_with_assumed_roles" {
+  source = "terraform-aws-modules/iam/aws//modules/iam-group-with-assumable-roles-policy"
+
+  name = "devops-with_AssumedRoles"
+  assumable_roles = [module.eks_cluster_role.iam_role_arn]
+  group_users = module.user_devops[*].iam_user_name
+
+  depends_on = [ module.user_devops ]
 }
 
-resource "aws_iam_role" "codebuild" {
-  name = "${var.name}-codebuild-role"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Effect = "Allow",
-      Principal = {
-        Service = "codebuild.amazonaws.com"
-      },
-      Action = "sts:AssumeRole"
-    }]
-  })
-  tags = var.tags
+#####################################################################################
+# IAM group for Developers with Custom Access
+#####################################################################################
+module "iam_group_developers" {
+  source = "terraform-aws-modules/iam/aws//modules/iam-group-with-policies"
+
+  name = "developers"
+  group_users = module.user_developers[*].iam_user_name
+  custom_group_policy_arns = var.developer_cgp_arn
+  depends_on = [ module.user_developers ]
 }
 
-resource "aws_iam_role_policy_attachment" "codebuild_policies" {
-  count      = length(var.codebuild_policy_arns)
-  role       = aws_iam_role.codebuild.name
-  policy_arn = var.codebuild_policy_arns[count.index]
+module "iam_group_developers_with_assumed_roles" {
+  source = "terraform-aws-modules/iam/aws//modules/iam-group-with-assumable-roles-policy"
+
+  name = "developers-with_assumed_roles"
+  assumable_roles = [module.eks_cluster_role.iam_role_arn]
+  group_users = module.user_developers[*].iam_user_name
+
+  depends_on = [ module.user_developers ]
 }
 
-resource "aws_iam_policy" "ecr_readonly_custom" {
-  name = "ecr-readonly"
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect = "Allow",
-        Action = [
-          "ecr:GetAuthorizationToken",
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage"
-        ],
-        Resource = "*"
-      }
-    ]
-  })
-}
-resource "aws_iam_role_policy_attachment" "eks_node_group_ecr_custom" {
-  role       = aws_iam_role.eks_node_group.name
-  policy_arn = aws_iam_policy.ecr_readonly_custom.arn
-}
+#####################################################################################
+# IAM Role - EKS Cluster
+#####################################################################################
+module "eks_cluster_role" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-assumable-role"
+  version = "5.0.0"
 
-#add oidc configuraion and at least 3 roles ( 1 role for provision infrastructure, application pipeline 1, 1 application) (cicd pipelin)
+  role_name = "AmazonEKSClusterRole"
+  create_role = true
+  role_path = "/"
+  role_requires_mfa = false
+  trusted_role_services = ["eks.amazonaws.com"]
+  custom_role_policy_arns = ["arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"]
+}

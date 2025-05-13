@@ -15,11 +15,16 @@ variable "cluster_version" {
 }
 
 variable "account" {
+  description = "AWS Account Number"
   type    = string
-  default = "666666666666"
 }
 
-variable "eks_subnet" {
+# variable "eks_public_subnets" {
+#   description = "List of subnet IDs for the EKS cluster"
+#   type        = list(string)
+# }
+
+variable "eks_private_subnets" {
   description = "List of subnet IDs for the EKS cluster"
   type        = list(string)
 }

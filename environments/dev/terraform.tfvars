@@ -1,6 +1,7 @@
 aws_profile = "sandbox"
 region      = "us-east-1"
 env         = "dev"
+account = "986323537898"
 
 # VPC Configuration
 vpc_cidr = "10.0.0.0/16"
@@ -14,3 +15,11 @@ database_subnets = ["10.0.100.0/24", "10.0.101.0/24"]
 cluster_version = "1.32"
 
 # eks_cluster_name = "dev-eks-cluster"
+
+# IAM Configurations
+  iam_groups_names     = ["Developers", "DevOps"]
+  iam_developerUser_names = ["samuel", "peter","lekan"]
+  iam_devOpsUser_names = ["sammy","joseph"]
+  devops_cgp_arn = ["arn:aws:iam::aws:policy/AdministratorAccess"]
+  developer_cgp_arn = ["arn:aws:iam::aws:policy/PowerUserAccess"]
+

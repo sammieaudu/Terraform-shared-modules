@@ -11,78 +11,124 @@ module "eks" {
   # Optional: Adds the current caller identity as an administrator via cluster access entry
   enable_cluster_creator_admin_permissions = true
 
+  cluster_upgrade_policy = {
+    support_type = "STANDARD"
+  }
+
+  cluster_zonal_shift_config = {
+    enabled = true
+  }
+
   vpc_id     = var.eks_vpc
-  subnet_ids = var.eks_subnet
+  control_plane_subnet_ids = var.eks_private_subnets
+  subnet_ids = var.eks_private_subnets
   
   # EKS Addons
   cluster_addons = {
-    coredns                = {}
-    eks-pod-identity-agent = {}
-  }
-  
-  # Fargate Profiles determine which pods run on Fargate.
-  fargate_profiles = {
-    coredns-fargate-profile = {
-      name = "coredns"
-      selectors = [
-        {
-          namespace = "kube-system"
-          labels = {
-            k8s-app = "kube-dns"
-          }
-        },
-        {
-          namespace = "default"
+    coredns = {
+      most_recent = true
+    }
+    eks-node-monitoring-agent = {
+      most_recent = true
+    }
+    eks-pod-identity-agent = {
+      before_compute = true
+      most_recent    = true
+    }
+    kube-proxy = {
+      most_recent = true
+    }
+    vpc-cni = {
+      most_recent    = true
+      before_compute = true
+      configuration_values = jsonencode({
+        env = {
+          # Reference docs https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html
+          ENABLE_PREFIX_DELEGATION = "true"
+          WARM_PREFIX_TARGET       = "1"
         }
-      ]
-      subnets = flatten([var.eks_subnet])
+      })
     }
   }
+  
+  # EKS Managed Node Group:
+  eks_managed_node_groups = {
+    default_node_group = {
+      ami_type       = "BOTTLEROCKET_x86_64"
+      instance_types = ["t3.medium"]
+      min_size = 2
+      max_size = 5
+      desired_size = 2
+    }
+  }
+
+
+  # # Fargate Profiles determine which pods run on Fargate.
+  # fargate_profiles = {
+  #   coredns-fargate-profile = {
+  #     name = "coredns"
+  #     selectors = [
+  #       {
+  #         namespace = "kube-system"
+  #         labels = {
+  #           k8s-app = "kube-dns"
+  #         }
+  #       },
+  #       {
+  #         namespace = "default"
+  #       }
+  #     ]
+  #     subnets = flatten([var.eks_private_subnets])
+  #   }
+  # }
 
   tags = local.tags
 }
 
-################################################
+
+
+# ###############################################
 # EKS AUTH
-################################################
-# module "eks-auth" {
-#   source  = "terraform-aws-modules/eks/aws//modules/aws-auth"
-#   version = "~> 20.0"
+# ###############################################
+module "eks-auth" {
+  source  = "terraform-aws-modules/eks/aws//modules/aws-auth"
+  version = "~> 20.0"
 
-#   manage_aws_auth_configmap = true
+  manage_aws_auth_configmap = true
 
-#   aws_auth_roles = [
-#     {
-#       rolearn  = "arn:aws:iam::${var.account}:role/role1"
-#       username = "role1"
-#       groups   = ["system:masters"]
-#     },
-#   ]
+  aws_auth_roles = [
+    {
+      rolearn  = "arn:aws:iam::${var.account}:role/AmazonEKSClusterRole"
+      username = "eksadmins"
+      groups   = ["system:masters"]
+    },
+  ]
 
-#   aws_auth_users = [
-#     {
-#       userarn  = "arn:aws:iam::${var.account}:user/user1"
-#       username = "user1"
-#       groups   = ["system:masters"]
-#     },
-#     {
-#       userarn  = "arn:aws:iam::${var.account}:user/user2"
-#       username = "user2"
-#       groups   = ["system:masters"]
-#     },
-#   ]
+  # aws_auth_users = [
+  #   {
+  #     userarn  = "arn:aws:iam::${var.account}:user/user1"
+  #     username = "user1"
+  #     groups   = ["system:masters"]
+  #   },
+  #   {
+  #     userarn  = "arn:aws:iam::${var.account}:user/user2"
+  #     username = "user2"
+  #     groups   = ["system:masters"]
+  #   },
+  # ]
 
-#   # aws_auth_accounts = [
-#   #   "777777777777",
-#   #   "888888888888",
-#   # ]
-# }
+  # aws_auth_accounts = [
+  #   "777777777777",
+  #   "888888888888",
+  # ]
+}
 
   ###############################
   # AWS EKS Cluster Authentication
   ###############################
   data "aws_eks_cluster_auth" "cluster" {
     name = module.eks.cluster_name
+    depends_on = [ module.eks ]
   }
   
   ###############################
@@ -110,6 +156,7 @@ module "eks" {
   ###############################
   data "aws_iam_openid_connect_provider" "oidc_provider" {
     url = module.eks.cluster_oidc_issuer_url
+    depends_on = [ module.eks ]
   }
   
   ###############################

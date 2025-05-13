@@ -47,7 +47,33 @@ variable "cluster_version" {
   description = "Kubernetes version to use for the EKS cluster"
   type        = string
 }
-#variable "eks_cluster_name" {
-#  description = "The name to give the EKS cluster."
-#  type        = string
-#}
+variable "account" {
+  description = "AWS Account Number"
+  type    = string
+}
+
+################################################
+# IAM Variables
+################################################
+variable "iam_groups_names" {
+  description = "List of IAM group names to create"
+  type        = list(string)
+}
+variable "iam_developerUser_names" {
+  description = "List of IAM Users names to create"
+  type        = list(string)
+}
+variable "iam_devOpsUser_names" {
+  description = "List of IAM Users names to create"
+  type        = list(string)
+}
+
+variable "developer_cgp_arn" {
+  description = "Developers custom group policy ARNS"
+  type        = list(string)
+}
+
+variable "devops_cgp_arn" {
+  description = "DevOps custom group policy ARNS"
+  type        = list(string)
+}

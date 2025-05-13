@@ -9,8 +9,24 @@ locals {
     Environment = var.env
   }
 }
-
+################################################
+# Data Blocks
+################################################
 data "aws_availability_zones" "available" {}
+
+################################################
+# IAM Configuration
+################################################
+module "iam" {
+  source = "../../modules/iam"
+  env              = var.env
+  region           = var.region
+  iam_groups_names = var.iam_groups_names
+  iam_developerUser_names = var.iam_developerUser_names
+  iam_devOpsUser_names = var.iam_devOpsUser_names
+  devops_cgp_arn= var.devops_cgp_arn
+  developer_cgp_arn= var.developer_cgp_arn
+}
 
 ################################################
 # VPC Netwok
@@ -37,8 +53,9 @@ module "eks" {
   cluster_version = var.cluster_version
   env              = var.env
   region           = var.region
+  account          = var.account
   eks_vpc     = module.network.vpc_id
-  eks_subnet = flatten([module.network.private_subnets_ids])
+  eks_private_subnets = flatten([module.network.private_subnets_ids])
 }
 
 ################################################
