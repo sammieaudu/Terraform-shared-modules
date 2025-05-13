@@ -6,7 +6,7 @@ module "eks" {
   cluster_version = var.cluster_version
 
   # Optional
-  cluster_endpoint_public_access = false
+  cluster_endpoint_public_access = true
 
   # Optional: Adds the current caller identity as an administrator via cluster access entry
   enable_cluster_creator_admin_permissions = true
@@ -62,26 +62,6 @@ module "eks" {
     }
   }
 
-
-  # # Fargate Profiles determine which pods run on Fargate.
-  # fargate_profiles = {
-  #   coredns-fargate-profile = {
-  #     name = "coredns"
-  #     selectors = [
-  #       {
-  #         namespace = "kube-system"
-  #         labels = {
-  #           k8s-app = "kube-dns"
-  #         }
-  #       },
-  #       {
-  #         namespace = "default"
-  #       }
-  #     ]
-  #     subnets = flatten([var.eks_private_subnets])
-  #   }
-  # }
-
   tags = local.tags
 }
 
@@ -117,10 +97,10 @@ module "eks-auth" {
     },
   ]
 
-  aws_auth_accounts = [
-    "${var.account}",
-    # "888888888888",
-  ]
+  # aws_auth_accounts = [
+  #   "${var.account}",
+  #   # "888888888888",
+  # ]
   depends_on = [ module.eks]
 }
 
