@@ -25,19 +25,25 @@ enterprise-terraform-structure/
 │   │   └── README.md
 │   └── ...                     # Additional modules as needed (CI/CD configurations, S3 buckets, etc.)
 ├── environments/
-│   ├── dev/
+│   ├── dex_backend/
 │   │   ├── main.tf             # Aggregates modules for the dev environment
 │   │   ├── backend.tf          # Remote state configuration (e.g., S3 bucket, DynamoDB for locking)
 │   │   ├── variables.tf        # Environment-specific variable definitions
 │   │   ├── terraform.tfvars    # Concrete values for dev
 │   │   └── README.md
-│   ├── staging/
+│   ├── dex_frontend/
 │   │   ├── main.tf
 │   │   ├── backend.tf
 │   │   ├── variables.tf
 │   │   ├── terraform.tfvars
 │   │   └── README.md
-│   └── prod/
+    ├── dex_nonprod/
+│   │   ├── main.tf
+│   │   ├── backend.tf
+│   │   ├── variables.tf
+│   │   ├── terraform.tfvars
+│   │   └── README.md
+│   └── dex_prod/
 │       ├── main.tf
 │       ├── backend.tf
 │       ├── variables.tf
