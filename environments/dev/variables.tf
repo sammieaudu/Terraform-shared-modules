@@ -40,7 +40,13 @@ variable "database_subnets" {
   type        = list(string)
 }
 
-
+################################################
+# EKS Cluster
+################################################
+variable "cluster_version" {
+  description = "Kubernetes version to use for the EKS cluster"
+  type        = string
+}
 #variable "eks_cluster_name" {
 #  description = "The name to give the EKS cluster."
 #  type        = string

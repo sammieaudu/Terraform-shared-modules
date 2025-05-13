@@ -14,7 +14,7 @@ module "vpc" {
     aws = aws.network
   }
 
-  name             = local.name
+  name             = "${local.name}-vpc"
   cidr             = var.vpc_cidr
   azs              = local.azs
   public_subnets   = var.public_subnets
@@ -30,10 +30,12 @@ module "vpc" {
 
   # Optionally, define tags for greater clarity over subnet usage
   public_subnet_tags = {
-    Type = "public"
+    Type = "public",
+    "kubernetes.io/role/elb" = 1
   }
   private_subnet_tags = {
-    Type = "private applications"
+    Type = "private applications",
+    "kubernetes.io/role/internal-elb" = 1
   }
   database_subnet_tags = {
     Type = "database"

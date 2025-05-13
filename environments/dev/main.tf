@@ -1,8 +1,8 @@
 locals {
-  name   = "${var.env}-vpc"
-  region = var.region
+  name   = "${var.env}-${var.region}"
 
   azs = slice(data.aws_availability_zones.available.names, 0, 3)
+
 
   tags = {
     Terraform   = "true"
@@ -20,7 +20,6 @@ module "network" {
   providers = {
     aws = aws.network
   }
-
   aws_profile      = var.aws_profile
   env              = var.env
   region           = var.region
@@ -33,11 +32,14 @@ module "network" {
 ################################################
 # EKS
 ################################################
-# module "eks" {
-#   source       = "../../modules/eks"
-#   cluster_name = var.eks_cluster_name
-#   subnets      = module.network.private_subnet_ids
-# }
+module "eks" {
+  source       = "../../modules/eks"
+  cluster_version = var.cluster_version
+  env              = var.env
+  region           = var.region
+  eks_vpc     = module.network.vpc_id
+  eks_subnet = flatten([module.network.private_subnets_ids])
+}
 
 ################################################
 # RDS

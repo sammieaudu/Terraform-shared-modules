@@ -1,4 +1,4 @@
-aws_profile = "AdministratorAccess-986323537898"
+aws_profile = "sandbox"
 region      = "us-east-1"
 env         = "dev"
 
@@ -11,4 +11,6 @@ private_subnets  = ["10.0.3.0/24", "10.0.4.0/24"]
 database_subnets = ["10.0.100.0/24", "10.0.101.0/24"]
 
 # EKS Configuration
+cluster_version = "1.32"
+
 # eks_cluster_name = "dev-eks-cluster"
