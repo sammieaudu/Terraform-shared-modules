@@ -15,6 +15,12 @@ variable "env" {
   type        = string
   default     = "dev"
 }
+################################################
+# S3 Buckets
+################################################
+variable "buckets_list" {
+  type = list(map(string))
+}
 
 ################################################
 # VPC Netwok
@@ -49,7 +55,7 @@ variable "cluster_version" {
 }
 variable "account" {
   description = "AWS Account Number"
-  type    = string
+  type        = string
 }
 
 ################################################

@@ -2,7 +2,7 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.31"
 
-  cluster_name    = "${local.name}-eks-cluster"
+  cluster_name    = "${local.name}-eks"
   cluster_version = var.cluster_version
 
   # Optional
@@ -164,8 +164,7 @@ module "eks-auth" {
   #   # "888888888888",
   # ]
   depends_on = [ 
-    module.eks,
-    provider.kubernetes
+    module.eks
   ]
 }
 
@@ -325,3 +324,30 @@ resource "helm_release" "cert_manager" {
 #   depends_on = [module.eks]
 # }
  
+#######################################
+# ArgoCD
+#######################################
+resource "helm_release" "argocd" {
+  name       = "argocd"
+  namespace  = "argocd"
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argo-cd"
+  version    = "5.46.7"
+
+  create_namespace = true
+
+  values = [
+    yamlencode({
+      server = {
+        service = {
+          type = "LoadBalancer"
+        }
+        ingress = {
+          enabled = false
+        }
+      }
+    })
+  ]
+
+  depends_on = [module.eks]
+}
