@@ -1,7 +1,6 @@
 provider "aws" {
   alias   = "network"
   region  = var.region
-  profile = var.aws_profile
 }
 
 data "aws_availability_zones" "available" {}
@@ -20,6 +19,8 @@ module "vpc" {
   public_subnets   = var.public_subnets
   private_subnets  = var.private_subnets
   database_subnets = var.database_subnets
+
+  create_database_subnet_group = true
 
   enable_dns_hostnames = true
   enable_dns_support   = true

@@ -1,7 +1,7 @@
 #aws_profile = "default"
-region      = "us-east-1"
-env         = "dex-backend"
-account     = "986323537898"
+region  = "us-east-1"
+env     = "dex-backend"
+account = "986323537898"
 
 # S3 Buckets
 buckets_list = [{ name = "terraform-state-bucket", acl = "private" }]
@@ -24,3 +24,5 @@ iam_devOpsUser_names    = ["sammy", "joseph"]
 devops_cgp_arn          = ["arn:aws:iam::aws:policy/AdministratorAccess"]
 developer_cgp_arn       = ["arn:aws:iam::aws:policy/PowerUserAccess"]
 
+# RDS Configuration
+rds_config = [{ name = "db", engine = "postgres", engine_version = "17.5", family = "postgres17", major_engine_version = "17.5", instance_class = "db.t3.micro", username = "dex_admin", min_storage = 20, max_storage = 50, port = 5432, replica = true }]

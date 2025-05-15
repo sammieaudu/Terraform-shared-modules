@@ -10,8 +10,8 @@ terraform {
 
 # Configure the AWS Provider for the network module
 provider "aws" {
-  alias   = "network"
-  region  = var.region
+  alias  = "network"
+  region = var.region
   #profile = var.aws_profile
 
   # Make it more faster by skipping something

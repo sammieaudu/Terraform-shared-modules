@@ -15,6 +15,8 @@
 ################################################
 data "aws_availability_zones" "available" {}
 
+data "aws_caller_identity" "current" {}
+
 ################################################
 # S3 Buckets
 ################################################
@@ -65,13 +67,19 @@ module "eks" {
   region              = var.region
   account             = var.account
   eks_vpc             = module.network.vpc_id
-  eks_private_subnets = flatten([module.network.private_subnets_ids])
+  eks_private_subnets = module.network.private_subnets
 }
 
 ################################################
 # RDS
 ################################################
-# module "rds" {
-#   source        = "../../modules/rds"
-#   db_subnet_ids = module.network.isolated_subnet_ids
-# }
+module "rds" {
+  source                  = "../../modules/rds"
+  env                     = var.env
+  region                  = var.region
+  rds_config              = var.rds_config
+  database_subnet_group   = module.network.database_subnet_group_name
+  password_rotation_rules = "rate(15 days)"
+  vpc_id                  = module.network.vpc_id
+  vpc_cidr                = module.network.vpc_cidr_block
+}

@@ -83,3 +83,10 @@ variable "devops_cgp_arn" {
   description = "DevOps custom group policy ARNS"
   type        = list(string)
 }
+
+################################################
+# RDS Configuration
+################################################
+variable "rds_config" {
+  type = list(map(string))
+}
