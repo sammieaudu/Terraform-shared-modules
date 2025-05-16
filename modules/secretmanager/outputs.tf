@@ -30,5 +30,7 @@ output "standard_secret_version_id" {
 output "standard_secret_string" {
   description = "The secret string"
   sensitive   = true
-  value       = module.secrets_manager.secret_string
+  value       = jsonencode({
+    random_password = module.secrets_manager.secret_string
+  })
 }

@@ -1,15 +1,30 @@
 ################################################################################
 # Generate Random Password
 ################################################################################
-resource "random_password" "rds_password" {
-  length           = 11
-  special          = true
-  override_special = "!@#$%^&*()_+"
+resource "aws_secretsmanager_secret_version" "rds_secret_version_update" {
+  for_each = { for idx, config in var.rds_config : config.name => config if config.username != null && config.username != "" }
+  secret_id     = module.secret_manager.standard_secret_arn
+  secret_string = jsonencode({
+    username = each.value.username,
+    password = jsondecode(module.secret_manager.standard_secret_string)["random_password"]
+  })
+
+  version_stages = ["AWSCURRENT"]
+
+  depends_on = [module.secret_manager]
+}
+
+data "aws_secretsmanager_secret_version" "rds_secret_version" {
+  secret_id = module.secret_manager.standard_secret_arn
+  version_stage = "AWSCURRENT"
+  depends_on = [aws_secretsmanager_secret_version.rds_secret_version_update]
 }
 
 ################################################################################
 # RDS Module
 ################################################################################
+
+data "aws_caller_identity" "current" {}
 
 module "master" {
   source = "terraform-aws-modules/rds/aws"
@@ -29,8 +44,8 @@ module "master" {
   max_allocated_storage = var.rds_config[count.index].max_storage
 
   db_name  = "${var.rds_config[count.index].name}master"
-  username = "${var.rds_config[count.index].username}"
-  password = "${random_password.rds_password.result}"
+  username = local.rds_credentials["username"]
+  password = local.rds_credentials["password"]
   port     = var.rds_config[count.index].port
 
   manage_master_user_password = false
@@ -50,9 +65,9 @@ module "master" {
 
   performance_insights_enabled          = true
   performance_insights_retention_period = 7
-  create_monitoring_role                = true
+  create_monitoring_role = false
   monitoring_interval                   = 60
-  monitoring_role_name                  = "rds-monitoring-role"
+  monitoring_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/rds-monitoring-role"
 
   parameters = [
     {
@@ -67,7 +82,7 @@ module "master" {
 
   tags = local.tags
 
-  depends_on = [module.rds_sg, random_password.rds_password]
+  depends_on = [module.rds_sg]
 }
 
 ################################################################################
@@ -77,27 +92,24 @@ module "master" {
 module "replica" {
   source = "terraform-aws-modules/rds/aws"
 
-  count = length(var.rds_config)
+  for_each = { for idx, config in var.rds_config : config.name => config if config.replica }
 
-  identifier = "${local.name}-${var.rds_config[count.index].name}-replica"
-  create_db_instance        = var.rds_config[count.index].replica
-  create_db_parameter_group = var.rds_config[count.index].replica
-  create_db_option_group    = var.rds_config[count.index].replica
+  identifier = "${local.name}-${each.value.name}-replica"
+  create_db_instance        = each.value.replica
+  create_db_parameter_group = each.value.replica
+  create_db_option_group    = each.value.replica
 
   # Source database. For cross-region use db_instance_arn
-  replicate_source_db = module.master[count.index].db_instance_identifier
+  replicate_source_db = local.master_map[each.value.name].db_instance_identifier
 
-  engine                   = var.rds_config[count.index].engine
-  engine_version           = var.rds_config[count.index].engine_version
-  family                   = var.rds_config[count.index].family
-  major_engine_version     = var.rds_config[count.index].major_engine_version
-  instance_class           = var.rds_config[count.index].instance_class
+  engine               = each.value.engine
+  engine_version       = each.value.engine_version
+  family = each.value.family 
+  instance_class       = each.value.instance_class
+  allocated_storage    = each.value.min_storage
+  max_allocated_storage = each.value.max_storage
+  port                = each.value.port
 
-
-  allocated_storage     = var.rds_config[count.index].min_storage
-  max_allocated_storage = var.rds_config[count.index].max_storage
-
-  port = var.rds_config[count.index].port
 
   multi_az               = false
   vpc_security_group_ids = [module.rds_sg.security_group_id]
@@ -137,21 +149,20 @@ module "secret_manager" {
 
 module "rds_secret_rotate" {
     source = "../secretmanager/sm-rotate"
-    count = length(module.master)
+    for_each = { for config in var.rds_config : config.name => config }
     env = var.env
-    secret_manager_name = "${local.name}-rds-secret"
+    secret_manager_name = "${local.name}-${each.value.name}-rds-secret"
     lambda_role_arn = [module.lambda_rds.lambda_role_arn]
     lambda_function_arn = module.lambda_rds.lambda_function_arn
-    engine = module.master[count.index].db_instance_engine
-    host = module.master[count.index].db_instance_endpoint
-    dbname = module.master[count.index].db_instance_name
-    username = module.master[count.index].db_instance_username
-    password = "${random_password.rds_password.result}"
-    port = module.master[count.index].db_instance_port
+    engine = local.master_map[each.value.name].db_instance_engine
+    host = local.master_map[each.value.name].db_instance_endpoint
+    dbname = local.master_map[each.value.name].db_instance_name
+    username = try(local.rds_credentials["username"])
+    password = try(local.rds_credentials["password"])
+    port = local.master_map[each.value.name].db_instance_port
     rotation_rule = var.password_rotation_rules
 
     depends_on = [ module.lambda_rds ]
-
 }
 
 ################################################################################

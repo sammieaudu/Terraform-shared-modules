@@ -21,6 +21,15 @@ module "secrets_manager" {
       actions   = ["secretsmanager:GetSecretValue"]
       resources = ["*"]
     }
+    write = {
+      sid = "AllowRotation"
+      principals = [{
+        type        = "AWS"
+        identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+      }]
+      actions   = ["secretsmanager:PutSecretValue"]
+      resources = ["*"]
+    }
   }
 
   # Version
