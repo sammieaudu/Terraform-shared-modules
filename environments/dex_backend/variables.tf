@@ -90,3 +90,18 @@ variable "devops_cgp_arn" {
 variable "rds_config" {
   type = list(map(string))
 }
+
+################################################
+# RDS Configuration
+################################################
+variable "amp_config" {
+  type = list(map(string))
+}
+
+variable "amp_custom_rules" {
+  type = list(object({
+    source = string
+    status = string
+    target = string
+  }))
+}

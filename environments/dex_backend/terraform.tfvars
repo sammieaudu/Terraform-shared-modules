@@ -26,6 +26,32 @@ developer_cgp_arn       = ["arn:aws:iam::aws:policy/PowerUserAccess"]
 
 # RDS Configuration
 rds_config = [
-    { name = "db", engine = "postgres", engine_version = "17.5", family = "postgres17", major_engine_version = "17.5", instance_class = "db.t3.micro", username = "dex_pgadmin", min_storage = 20, max_storage = 50, port = 5432, replica = true },
-    { name = "test", engine = "postgres", engine_version = "17.5", family = "postgres17", major_engine_version = "17.5", instance_class = "db.t3.micro", username = "test_pgadmin", min_storage = 20, max_storage = 30, port = 5432, replica = false }
+  { name = "db", engine = "postgres", engine_version = "17.5", family = "postgres17", major_engine_version = "17.5", instance_class = "db.t3.micro", username = "dex_pgadmin", min_storage = 20, max_storage = 50, port = 5432, replica = true },
+  { name = "test", engine = "postgres", engine_version = "17.5", family = "postgres17", major_engine_version = "17.5", instance_class = "db.t3.micro", username = "test_pgadmin", min_storage = 20, max_storage = 30, port = 5432, replica = false }
+]
+
+# Amplify Frontend
+amp_config = [
+  {
+    name            = "popupuibackend",
+    framework       = "React"
+    repo            = "https://github.com/react/app",
+    github_pat_path = "/amplify/auth",
+    branch_name     = "main",
+    stage           = "PRODUCTION",
+    backend         = true
+  },
+  {
+    name            = "angularuiform",
+    framework       = "Angular"
+    repo            = "https://github.com/angular/app",
+    github_pat_path = "/amplify/auth",
+    branch_name     = "development",
+    stage           = "DEVELOPMENT",
+    backend         = false
+  }
+]
+amp_custom_rules = [
+  { source = "/<*>", status = "404", target = "/index.html" },
+  { source = "/api/*", status = "200", target = "/api/index.html" }
 ]

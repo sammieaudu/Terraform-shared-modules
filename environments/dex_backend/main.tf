@@ -83,3 +83,14 @@ module "rds" {
   vpc_id                  = module.network.vpc_id
   vpc_cidr                = module.network.vpc_cidr_block
 }
+
+################################################
+# Amplify
+################################################
+module "amplify" {
+  source       = "../../modules/amplify"
+  env          = var.env
+  region       = var.region
+  amp_config   = var.amp_config
+  custom_rules = var.amp_custom_rules
+}

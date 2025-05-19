@@ -49,7 +49,7 @@ variable "cluster_version" {
 }
 variable "account" {
   description = "AWS Account Number"
-  type    = string
+  type        = string
 }
 
 ################################################

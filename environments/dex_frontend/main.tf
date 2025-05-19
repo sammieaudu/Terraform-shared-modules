@@ -1,5 +1,5 @@
 locals {
-  name   = "${var.env}-${var.region}"
+  name = "${var.env}-${var.region}"
 
   azs = slice(data.aws_availability_zones.available.names, 0, 3)
 
@@ -18,14 +18,14 @@ data "aws_availability_zones" "available" {}
 # IAM Configuration
 ################################################
 module "iam" {
-  source = "../../modules/iam"
-  env              = var.env
-  region           = var.region
-  iam_groups_names = var.iam_groups_names
+  source                  = "../../modules/iam"
+  env                     = var.env
+  region                  = var.region
+  iam_groups_names        = var.iam_groups_names
   iam_developerUser_names = var.iam_developerUser_names
-  iam_devOpsUser_names = var.iam_devOpsUser_names
-  devops_cgp_arn= var.devops_cgp_arn
-  developer_cgp_arn= var.developer_cgp_arn
+  iam_devOpsUser_names    = var.iam_devOpsUser_names
+  devops_cgp_arn          = var.devops_cgp_arn
+  developer_cgp_arn       = var.developer_cgp_arn
 }
 
 ################################################
@@ -49,12 +49,12 @@ module "network" {
 # EKS
 ################################################
 module "eks" {
-  source       = "../../modules/eks"
-  cluster_version = var.cluster_version
-  env              = var.env
-  region           = var.region
-  account          = var.account
-  eks_vpc     = module.network.vpc_id
+  source              = "../../modules/eks"
+  cluster_version     = var.cluster_version
+  env                 = var.env
+  region              = var.region
+  account             = var.account
+  eks_vpc             = module.network.vpc_id
   eks_private_subnets = flatten([module.network.private_subnets_ids])
 }
 
