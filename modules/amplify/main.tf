@@ -55,3 +55,16 @@ resource "aws_amplify_webhook" "main" {
 
   depends_on = [ aws_amplify_branch.main_branch ]
 }
+
+resource "aws_amplify_domain_association" "domain_association" {
+  for_each = {for amplify in var.amp_config : amplify.name => amplify}
+  app_id      = aws_amplify_app.frontend[each.key].id
+  domain_name           = each.value.domain_name
+  wait_for_verification = false
+
+  sub_domain {
+    branch_name = aws_amplify_branch.main_branch[each.key].branch_name
+    prefix      = each.value.branch_name
+  }
+
+}

@@ -40,6 +40,7 @@ amp_config = [
     branch_name     = "main",
     stage           = "PRODUCTION",
     backend         = true
+    domain_name     = "awsamplifyapp.com"
   },
   {
     name            = "angularuiform",
@@ -49,6 +50,7 @@ amp_config = [
     branch_name     = "development",
     stage           = "DEVELOPMENT",
     backend         = false
+    domain_name     = "awsamplifyapp.com"
   }
 ]
 amp_custom_rules = [
