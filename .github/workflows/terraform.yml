@@ -311,7 +311,7 @@ jobs:
 
   deploy:
     needs: [detect-changes, build]
-    if: ${{ fromJson(needs.detect-changes.outputs.matrix).env != '[]' }}
+    if: ${{ needs.detect-changes.outputs.matrix != '{"env":[]}' }}
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
