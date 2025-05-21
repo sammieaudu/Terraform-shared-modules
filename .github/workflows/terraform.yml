@@ -46,19 +46,25 @@ jobs:
       - name: Set Matrix
         id: set-matrix
         run: |
-          MATRIX='{"env":[]}'
+          # Initialize empty array
+          ENV_ARRAY="[]"
+          
+          # Check each environment and build array
           if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_backend/"* ]]; then
-            MATRIX=$(echo $MATRIX | jq '.env += [{"account": "dex_backend", "role": "DEX_BACKEND_AWS_ROLE_ARN"}]')
+            ENV_ARRAY=$(echo $ENV_ARRAY | jq '. += [{"account": "dex_backend", "role": "DEX_BACKEND_AWS_ROLE_ARN"}]')
           fi
           if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_frontend/"* ]]; then
-            MATRIX=$(echo $MATRIX | jq '.env += [{"account": "dex_frontend", "role": "DEX_FRONTEND_AWS_ROLE_ARN"}]')
+            ENV_ARRAY=$(echo $ENV_ARRAY | jq '. += [{"account": "dex_frontend", "role": "DEX_FRONTEND_AWS_ROLE_ARN"}]')
           fi
           if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_nonprod/"* ]]; then
-            MATRIX=$(echo $MATRIX | jq '.env += [{"account": "dex_nonprod", "role": "DEX_NONPROD_AWS_ROLE_ARN"}]')
+            ENV_ARRAY=$(echo $ENV_ARRAY | jq '. += [{"account": "dex_nonprod", "role": "DEX_NONPROD_AWS_ROLE_ARN"}]')
           fi
           if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_prod/"* ]]; then
-            MATRIX=$(echo $MATRIX | jq '.env += [{"account": "dex_prod", "role": "DEX_PROD_AWS_ROLE_ARN"}]')
+            ENV_ARRAY=$(echo $ENV_ARRAY | jq '. += [{"account": "dex_prod", "role": "DEX_PROD_AWS_ROLE_ARN"}]')
           fi
+          
+          # Create final matrix JSON
+          MATRIX="{\"env\":$ENV_ARRAY}"
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   deploy:
