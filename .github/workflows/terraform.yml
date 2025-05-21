@@ -24,15 +24,49 @@ permissions:
   actions: write
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check Changed Files
+        id: changed-files
+        uses: tj-actions/changed-files@v39
+        with:
+          files: |
+            environments/dex_backend/**
+            environments/dex_frontend/**
+            environments/dex_nonprod/**
+            environments/dex_prod/**
+
+      - name: Set Matrix
+        id: set-matrix
+        run: |
+          MATRIX='{"env":[]}'
+          if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_backend/"* ]]; then
+            MATRIX=$(echo $MATRIX | jq '.env += [{"account": "dex_backend", "role": "DEX_BACKEND_AWS_ROLE_ARN"}]')
+          fi
+          if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_frontend/"* ]]; then
+            MATRIX=$(echo $MATRIX | jq '.env += [{"account": "dex_frontend", "role": "DEX_FRONTEND_AWS_ROLE_ARN"}]')
+          fi
+          if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_nonprod/"* ]]; then
+            MATRIX=$(echo $MATRIX | jq '.env += [{"account": "dex_nonprod", "role": "DEX_NONPROD_AWS_ROLE_ARN"}]')
+          fi
+          if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_prod/"* ]]; then
+            MATRIX=$(echo $MATRIX | jq '.env += [{"account": "dex_prod", "role": "DEX_PROD_AWS_ROLE_ARN"}]')
+          fi
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
   deploy:
+    needs: detect-changes
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix).env != '[]' }}
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        env:
-          - { account: dex_backend, role: DEX_BACKEND_AWS_ROLE_ARN }
-          - { account: dex_frontend, role: DEX_FRONTEND_AWS_ROLE_ARN }
-          - { account: dex_nonprod, role: DEX_NONPROD_AWS_ROLE_ARN }
-          - { account: dex_prod, role: DEX_PROD_AWS_ROLE_ARN }
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
     
     # Git Action Env
     env:
@@ -46,19 +80,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Check last modified files in specific directories
-      - name: Check Last Modified Terraform Files
-        id: changed-files
-        run: |
-          CHANGED_FILES=$(git diff --name-only origin/main | grep "environments/${{ matrix.env.account }}/")
-          if [[ -z "$CHANGED_FILES" ]]; then
-            echo "No Terraform files changed in the environment ${{ matrix.env.account }}, skipping deployment."
-            exit 0
-          else
-            echo "Modified files in ${{ matrix.env.account }}:"
-            echo "$CHANGED_FILES"
-          fi
-      
       # 2. Setup Terraform CLI with the desired version.
       - name: Setup Terraform
         if: success()
