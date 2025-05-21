@@ -15,6 +15,13 @@ on:
       - "environments/dex_frontend/**"
       - "environments/dex_nonprod/**"
       - "environments/dex_prod/**"
+  workflow_dispatch:
+    inputs:
+      destroy_resources:
+        description: 'Destroy Terraform resources'
+        required: true
+        type: boolean
+        default: false
 
 # Permissions
 permissions:
@@ -22,17 +29,79 @@ permissions:
   id-token: write 
   security-events: write
   actions: write
+  pull-requests: write
 
 jobs:
-  deploy:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check Changed Files
+        id: changed-files
+        uses: tj-actions/changed-files@v39
+        with:
+          files: |
+            environments/dex_backend/**
+            environments/dex_frontend/**
+            environments/dex_nonprod/**
+            environments/dex_prod/**
+
+      - name: Set Matrix
+        id: set-matrix
+        run: |
+          # Initialize matrix string
+          MATRIX_STR=""
+          
+          # Check each environment and build matrix string
+          if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_backend/"* ]]; then
+            if [ -n "$MATRIX_STR" ]; then
+              MATRIX_STR="$MATRIX_STR,"
+            fi
+            MATRIX_STR="$MATRIX_STR{\"account\":\"dex_backend\",\"role\":\"DEX_BACKEND_AWS_ROLE_ARN\"}"
+          fi
+          
+          if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_frontend/"* ]]; then
+            if [ -n "$MATRIX_STR" ]; then
+              MATRIX_STR="$MATRIX_STR,"
+            fi
+            MATRIX_STR="$MATRIX_STR{\"account\":\"dex_frontend\",\"role\":\"DEX_FRONTEND_AWS_ROLE_ARN\"}"
+          fi
+          
+          if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_nonprod/"* ]]; then
+            if [ -n "$MATRIX_STR" ]; then
+              MATRIX_STR="$MATRIX_STR,"
+            fi
+            MATRIX_STR="$MATRIX_STR{\"account\":\"dex_nonprod\",\"role\":\"DEX_NONPROD_AWS_ROLE_ARN\"}"
+          fi
+          
+          if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_prod/"* ]]; then
+            if [ -n "$MATRIX_STR" ]; then
+              MATRIX_STR="$MATRIX_STR,"
+            fi
+            MATRIX_STR="$MATRIX_STR{\"account\":\"dex_prod\",\"role\":\"DEX_PROD_AWS_ROLE_ARN\"}"
+          fi
+          
+          # Create final matrix JSON
+          if [ -n "$MATRIX_STR" ]; then
+            echo "matrix={\"env\":[$MATRIX_STR]}" >> $GITHUB_OUTPUT
+          else
+            echo "matrix={\"env\":[]}" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: detect-changes
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix).env != '[]' }}
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        env:
-          - { account: dex_backend, role: DEX_BACKEND_AWS_ROLE_ARN }
-          - { account: dex_frontend, role: DEX_FRONTEND_AWS_ROLE_ARN }
-          - { account: dex_nonprod, role: DEX_NONPROD_AWS_ROLE_ARN }
-          - { account: dex_prod, role: DEX_PROD_AWS_ROLE_ARN }
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    outputs:
+      plan_file: ${{ steps.plan.outputs.plan_file }}
+      tfsec_results: ${{ steps.tfsec.outputs.results }}
     
     # Git Action Env
     env:
@@ -43,87 +112,268 @@ jobs:
       # 1. Checkout your repository containing your Terraform configuration.
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # Check last modified files in specific directories
-      - name: Check Last Modified Terraform Files
-        id: changed-files
-        run: |
-          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | grep "environments/${{ matrix.env.account }}/")
-          if [[ -z "$CHANGED_FILES" ]]; then
-            echo "No Terraform files changed in the environment ${matrix.env.account}, skipping deployment."
-            exit 0
-          else
-            echo "Modified files in ${matrix.env.account}:"
-            echo "$CHANGED_FILES"
-          fi
-      
       # 2. Setup Terraform CLI with the desired version.
       - name: Setup Terraform
+        if: success()
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.6.0"
+          terraform_version: "1.5.7"
 
       # 3. Configure AWS Credentials using assumed role via GitHub OIDC.
       - name: Configure AWS Credentials via OIDC
+        id: AWS_ODIC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets[matrix.env.role] }}
           aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
 
       # 4. Check Terraform format
       - name: Terraform Format
+        if: success()
+        id: fmt
         run: |
           cd environments/${{ matrix.env.account }}
           if terraform fmt -check; then
             echo "✅ Terraform format succeeded"
+            echo "stdout=Format check passed" >> $GITHUB_OUTPUT
           else
             echo "Terraform format failed"
+            echo "stdout=Format check failed" >> $GITHUB_OUTPUT
             exit 1
           fi
 
-      # 5. Initialize Terraform
+      # 5. Run tfsec
+      - name: Run tfsec
+        if: success()
+        id: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.0
+        with:
+          working_directory: environments/${{ matrix.env.account }}
+          soft_fail: true
+          format: json
+          output_path: tfsec-results.json
+
+      # 6. Initialize Terraform
       - name: Terraform Init
+        if: success()
+        id: init
         run: |
-          cd environments/${{ matrix.env.account }} || exit 1
+          cd environments/${{ matrix.env.account }}
           terraform --version
-          terraform init
-          if terraform init --upgrade=true; then
+          # Enable debug logging
+          export TF_LOG=DEBUG
+          export TF_LOG_PATH=terraform.log
+          
+          # Initialize with debug output
+          terraform init -input=false
+          if [ $? -eq 0 ]; then
             echo "✅ Terraform init succeeded"
+            echo "stdout=Initialization successful" >> $GITHUB_OUTPUT
+            # Print the last 100 lines of the log for debugging
+            tail -n 100 terraform.log
           else
-            echo "Terraform init failed"
+            echo "❌ Terraform init failed"
+            # Print the full log on failure
+            cat terraform.log
             exit 1
           fi
 
-      # 6. Validate Terraform configuration
+      # 7. Validate Terraform configuration
       - name: Terraform Validate
+        if: success()
+        id: validate
         run: |
-          cd environments/${{ matrix.env.account }} || exit 1
-          if terraform validate; then
+          cd environments/${{ matrix.env.account }}
+          # Run validate with debug output
+          VALIDATE_OUTPUT=$(terraform validate -no-color)
+          echo "stdout<<EOF" >> $GITHUB_OUTPUT
+          echo "$VALIDATE_OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          if [ $? -eq 0 ]; then
             echo "✅ Terraform validate succeeded"
           else
-            echo "Terraform validate failed"
+            echo "❌ Terraform validate failed"
+            # Print the full log on failure
+            cat terraform.log
             exit 1
           fi
 
-      # 7. Generate Terraform execution plan
+      # 8. Generate Terraform execution plan
       - name: Terraform Plan
+        if: success()
+        id: plan
         run: |
-          cd environments/${{ matrix.env.account }} || exit 1
-          if terraform plan -out=tfplan; then
+          cd environments/${{ matrix.env.account }}
+          # Run plan with debug output
+          terraform plan -input=false -out=tfplan > plan.txt
+          if [ $? -eq 0 ]; then
             echo "✅ Terraform plan succeeded"
+            echo "plan_file=tfplan" >> $GITHUB_OUTPUT
           else
-            echo "Terraform plan failed"
+            echo "❌ Terraform plan failed"
+            # Print the full log on failure
+            cat terraform.log
             exit 1
           fi
 
-      # Apply Terraform execution plan
-      # - name: Terraform Apply
-      #   if: github.event_name == 'push' && github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
-      #   run: |
-      #     cd environments/${{ matrix.env.account }} || exit 1
-      #     if terraform apply -auto-approve; then
-      #       echo "✅ Terraform apply succeeded"
-      #     else
-      #       echo "Terraform apply failed"
-      #       exit 1
-      #     fi
+      # 9. Comment PR with Terraform results
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // 1. Retrieve existing bot comments for the PR
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+            const botComment = comments.find(comment => {
+              return comment.user.type === 'Bot' && comment.body.includes('Terraform Format and Style')
+            })
+
+            // 2. Read plan output from file
+            const fs = require('fs');
+            const planOutput = fs.readFileSync('environments/${{ matrix.env.account }}/plan.txt', 'utf8');
+
+            // 3. Read tfsec results if they exist
+            let tfsecOutput = '';
+            try {
+              const tfsecResults = JSON.parse(fs.readFileSync('tfsec-results.json', 'utf8'));
+              if (tfsecResults.results && tfsecResults.results.length > 0) {
+                tfsecOutput = '\n\n#### tfsec Security Scan 🔒\n\n';
+                tfsecResults.results.forEach(result => {
+                  tfsecOutput += `- **${result.rule_id}**: ${result.description}\n`;
+                  tfsecOutput += `  - Severity: ${result.severity}\n`;
+                  tfsecOutput += `  - Location: ${result.location.filename}:${result.location.start_line}\n\n`;
+                });
+              }
+            } catch (e) {
+              // If file doesn't exist or is invalid JSON, ignore
+            }
+
+            // 4. Prepare format of the comment
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Security Scan 🔒\`${{ steps.tfsec.outcome }}\`${tfsecOutput}
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+            <details><summary>Validation Output</summary>
+
+            \`\`\`\n
+            ${{ steps.validate.outputs.stdout }}
+            \`\`\`
+
+            </details>
+
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`\n
+            ${planOutput}
+            \`\`\`
+
+            </details>
+
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ matrix.env.account }}\`, Workflow: \`${{ github.workflow }}\`*`;
+
+            // 5. If we have a comment, update it, otherwise create a new one
+            if (botComment) {
+              github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: output
+              })
+            } else {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: output
+              })
+            }
+
+  deploy:
+    needs: build
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix).env != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    
+    # Git Action Env
+    env:
+      AWS_ROLE: ${{ secrets[matrix.env.role] }}
+      AWS_REGION: us-east-1
+      PLAN_FILE: ${{ needs.build.outputs.plan_file }}
+      TFSEC_RESULTS: ${{ needs.build.outputs.tfsec_results }}
+
+    steps:
+      # 1. Checkout your repository containing your Terraform configuration.
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Setup Terraform CLI with the desired version.
+      - name: Setup Terraform
+        if: success()
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+
+      # 3. Configure AWS Credentials using assumed role via GitHub OIDC.
+      - name: Configure AWS Credentials via OIDC
+        id: AWS_ODIC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets[matrix.env.role] }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      # 4. Initialize Terraform
+      - name: Terraform Init
+        if: success()
+        id: init
+        run: |
+          cd environments/${{ matrix.env.account }}
+          terraform init -input=false
+
+      # 5. Apply Terraform changes
+      - name: Terraform Apply
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+        id: tf_apply
+        run: |
+          cd environments/${{ matrix.env.account }}
+          if terraform apply -auto-approve ${{ env.PLAN_FILE }}; then
+            echo "✅ Terraform apply succeeded"
+          else
+            echo "❌ Terraform apply failed"
+            exit 1
+          fi
+
+      # 6. Destroy resources if needed
+      - name: Terraform Destroy
+        if: github.event_name == 'workflow_dispatch' && inputs.destroy_resources == true
+        id: tf_destroy
+        run: |
+          cd environments/${{ matrix.env.account }}
+          # Create destroy plan
+          if terraform plan -destroy -out=destroy.tfplan; then
+            echo "✅ Terraform destroy plan created"
+            # Apply destroy plan
+            if terraform apply -auto-approve destroy.tfplan; then
+              echo "✅ Terraform destroy succeeded"
+            else
+              echo "❌ Terraform destroy failed"
+              exit 1
+            fi
+          else
+            echo "❌ Terraform destroy plan failed"
+            exit 1
+          fi

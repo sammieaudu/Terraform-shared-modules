@@ -1,11 +1,13 @@
-output "amplify_frontend" {
+output "amplify_frontend_apps" {
+    description = "Map of Amplify frontend applications"
     value = {
-        for k, v in var.amp_config : k => aws_amplify_app.frontend[v.name].name
+        for app in var.amp_config : app.name => aws_amplify_app.frontend[app.name].name
     }
 }
 
-output "aws_amplify_backend" {
+output "amplify_backend_environments" {
+    description = "Map of Amplify backend environments"
     value = {
-        for k, v in var.amp_config : k => aws_amplify_backend_environment.backend[v.name].name
+        for app in var.amp_config : app.name => aws_amplify_backend_environment.backend[app.name].environment_name if app.backend
     }
 }
