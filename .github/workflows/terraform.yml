@@ -89,13 +89,13 @@ jobs:
       - name: Terraform Init
         if: success()
         run: |
-          cd environments/${{ matrix.env.account }} || exit 1
+          cd environments/${{ matrix.env.account }}
           terraform --version
-          terraform init
-          if terraform init --upgrade=true; then
+          terraform init -input=false
+          if [ $? -eq 0 ]; then
             echo "✅ Terraform init succeeded"
           else
-            echo "Terraform init failed"
+            echo "❌ Terraform init failed"
             exit 1
           fi
 
@@ -103,11 +103,12 @@ jobs:
       - name: Terraform Validate
         if: success()
         run: |
-          cd environments/${{ matrix.env.account }} || exit 1
-          if terraform validate; then
+          cd environments/${{ matrix.env.account }}
+          terraform validate -json
+          if [ $? -eq 0 ]; then
             echo "✅ Terraform validate succeeded"
           else
-            echo "Terraform validate failed"
+            echo "❌ Terraform validate failed"
             exit 1
           fi
 
@@ -115,11 +116,12 @@ jobs:
       - name: Terraform Plan
         if: success()
         run: |
-          cd environments/${{ matrix.env.account }} || exit 1
-          if terraform plan -out=tfplan; then
+          cd environments/${{ matrix.env.account }}
+          terraform plan -input=false -out=tfplan
+          if [ $? -eq 0 ]; then
             echo "✅ Terraform plan succeeded"
           else
-            echo "Terraform plan failed"
+            echo "❌ Terraform plan failed"
             exit 1
           fi
 
@@ -131,6 +133,6 @@ jobs:
       #     if terraform apply -auto-approve; then
       #       echo "✅ Terraform apply succeeded"
       #     else
-      #       echo "Terraform apply failed"
+      #       echo "❌ Terraform apply failed"
       #       exit 1
       #     fi
