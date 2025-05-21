@@ -124,7 +124,16 @@ jobs:
         with:
           terraform_version: "1.5.7"
 
-      # 3. Configure AWS Credentials using assumed role via GitHub OIDC.
+      # 3. Cache Terraform plugins
+      - name: Cache Terraform plugins
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
+
+      # 4. Configure AWS Credentials using assumed role via GitHub OIDC.
       - name: Configure AWS Credentials via OIDC
         id: AWS_ODIC
         uses: aws-actions/configure-aws-credentials@v4
@@ -133,7 +142,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           mask-aws-account-id: true
 
-      # 4. Check Terraform format
+      # 5. Check Terraform format
       - name: Terraform Format
         if: success()
         id: fmt
@@ -148,7 +157,7 @@ jobs:
             exit 1
           fi
 
-      # 5. Run tfsec
+      # 6. Run tfsec
       - name: Run tfsec
         if: success()
         id: tfsec
@@ -159,7 +168,7 @@ jobs:
           format: json
           additional_args: --out-file tfsec-results.json
 
-      # 6. Initialize Terraform
+      # 7. Initialize Terraform
       - name: Terraform Init
         if: success()
         id: init
@@ -184,7 +193,7 @@ jobs:
             exit 1
           fi
 
-      # 7. Validate Terraform configuration
+      # 8. Validate Terraform configuration
       - name: Terraform Validate
         if: success()
         id: validate
@@ -204,7 +213,7 @@ jobs:
             exit 1
           fi
 
-      # 8. Generate Terraform execution plan
+      # 9. Generate Terraform execution plan
       - name: Terraform Plan
         if: success()
         id: plan
@@ -222,7 +231,7 @@ jobs:
             exit 1
           fi
 
-      # 9. Comment PR with Terraform results
+      # 10. Comment PR with Terraform results
       - name: Comment PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
@@ -329,7 +338,16 @@ jobs:
         with:
           terraform_version: "1.5.7"
 
-      # 3. Configure AWS Credentials using assumed role via GitHub OIDC.
+      # 3. Cache Terraform plugins
+      - name: Cache Terraform plugins
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
+
+      # 4. Configure AWS Credentials using assumed role via GitHub OIDC.
       - name: Configure AWS Credentials via OIDC
         id: AWS_ODIC
         uses: aws-actions/configure-aws-credentials@v4
@@ -338,7 +356,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           mask-aws-account-id: true
 
-      # 4. Initialize Terraform
+      # 5. Initialize Terraform
       - name: Terraform Init
         if: success()
         id: init
@@ -346,7 +364,7 @@ jobs:
           cd environments/${{ matrix.env.account }}
           terraform init -input=false
 
-      # 5. Apply Terraform changes
+      # 6. Apply Terraform changes
       - name: Terraform Apply
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
         id: tf_apply
@@ -359,7 +377,7 @@ jobs:
             exit 1
           fi
 
-      # 6. Destroy resources if needed
+      # 7. Destroy resources if needed
       - name: Terraform Destroy
         if: github.event_name == 'workflow_dispatch' && inputs.destroy_resources == true
         id: tf_destroy
