@@ -73,6 +73,7 @@ jobs:
         run: |
           cd environments/${{ matrix.env.account }} || exit 1
           terraform --version
+          terraform init
           if terraform init --upgrade=true; then
             echo "✅ Terraform init succeeded"
           else
