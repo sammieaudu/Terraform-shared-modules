@@ -2,8 +2,7 @@ name: Terraform Multi-Account Deployment
 on:
   push:
     branches:
-      - main
-      - release/*
+      - '**'
     paths:
       - "environments/dex_backend/**"
       - "environments/dex_frontend/**"
@@ -11,7 +10,7 @@ on:
       - "environments/dex_prod/**"
   pull_request:
     branches:
-      - release/*
+      - '**'
     paths:
       - "environments/dex_backend/**"
       - "environments/dex_frontend/**"
