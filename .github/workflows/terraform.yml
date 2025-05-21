@@ -187,10 +187,7 @@ jobs:
         run: |
           cd environments/${{ matrix.env.account }}
           # Run plan with debug output
-          PLAN_OUTPUT=$(terraform plan -input=false -out=tfplan)
-          echo "stdout<<EOF" >> $GITHUB_OUTPUT
-          echo "$PLAN_OUTPUT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          terraform plan -input=false -out=tfplan > plan.txt
           if [ $? -eq 0 ]; then
             echo "✅ Terraform plan succeeded"
           else
@@ -204,8 +201,6 @@ jobs:
       - name: Comment PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
-        env:
-          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -219,7 +214,11 @@ jobs:
               return comment.user.type === 'Bot' && comment.body.includes('Terraform Format and Style')
             })
 
-            // 2. Prepare format of the comment
+            // 2. Read plan output from file
+            const fs = require('fs');
+            const planOutput = fs.readFileSync('environments/${{ matrix.env.account }}/plan.txt', 'utf8');
+
+            // 3. Prepare format of the comment
             const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
             #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
             #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
@@ -236,14 +235,14 @@ jobs:
             <details><summary>Show Plan</summary>
 
             \`\`\`\n
-            ${process.env.PLAN}
+            ${planOutput}
             \`\`\`
 
             </details>
 
             *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ matrix.env.account }}\`, Workflow: \`${{ github.workflow }}\`*`;
 
-            // 3. If we have a comment, update it, otherwise create a new one
+            // 4. If we have a comment, update it, otherwise create a new one
             if (botComment) {
               github.rest.issues.updateComment({
                 owner: context.repo.owner,
