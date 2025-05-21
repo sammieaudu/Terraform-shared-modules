@@ -49,22 +49,33 @@ jobs:
           # Initialize empty array
           ENV_ARRAY="[]"
           
+          # Debug: Print changed files
+          echo "Changed files: ${{ steps.changed-files.outputs.all_changed_files }}"
+          
           # Check each environment and build array
           if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_backend/"* ]]; then
-            ENV_ARRAY=$(echo $ENV_ARRAY | jq '. += [{"account": "dex_backend", "role": "DEX_BACKEND_AWS_ROLE_ARN"}]')
+            ENV_ARRAY=$(echo $ENV_ARRAY | jq -c '. += [{"account": "dex_backend", "role": "DEX_BACKEND_AWS_ROLE_ARN"}]')
           fi
           if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_frontend/"* ]]; then
-            ENV_ARRAY=$(echo $ENV_ARRAY | jq '. += [{"account": "dex_frontend", "role": "DEX_FRONTEND_AWS_ROLE_ARN"}]')
+            ENV_ARRAY=$(echo $ENV_ARRAY | jq -c '. += [{"account": "dex_frontend", "role": "DEX_FRONTEND_AWS_ROLE_ARN"}]')
           fi
           if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_nonprod/"* ]]; then
-            ENV_ARRAY=$(echo $ENV_ARRAY | jq '. += [{"account": "dex_nonprod", "role": "DEX_NONPROD_AWS_ROLE_ARN"}]')
+            ENV_ARRAY=$(echo $ENV_ARRAY | jq -c '. += [{"account": "dex_nonprod", "role": "DEX_NONPROD_AWS_ROLE_ARN"}]')
           fi
           if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_prod/"* ]]; then
-            ENV_ARRAY=$(echo $ENV_ARRAY | jq '. += [{"account": "dex_prod", "role": "DEX_PROD_AWS_ROLE_ARN"}]')
+            ENV_ARRAY=$(echo $ENV_ARRAY | jq -c '. += [{"account": "dex_prod", "role": "DEX_PROD_AWS_ROLE_ARN"}]')
           fi
           
+          # Debug: Print the array
+          echo "Environment array: $ENV_ARRAY"
+          
           # Create final matrix JSON
-          MATRIX="{\"env\":$ENV_ARRAY}"
+          MATRIX=$(jq -n --argjson env "$ENV_ARRAY" '{"env": $env}')
+          
+          # Debug: Print final matrix
+          echo "Final matrix: $MATRIX"
+          
+          # Set output
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   deploy:
