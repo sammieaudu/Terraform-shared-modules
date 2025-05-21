@@ -20,7 +20,7 @@ cluster_version = "1.32"
 # IAM Configurations
 iam_groups_names        = ["Developers", "DevOps"]
 iam_developerUser_names = ["samuel", "peter", "lekan"]
-iam_devOpsUser_names    = ["sammy", "joseph"]
+iam_devOpsUser_names    = ["sammy", "joseph", "saul"]
 devops_cgp_arn          = ["arn:aws:iam::aws:policy/AdministratorAccess"]
 developer_cgp_arn       = ["arn:aws:iam::aws:policy/PowerUserAccess"]
 
