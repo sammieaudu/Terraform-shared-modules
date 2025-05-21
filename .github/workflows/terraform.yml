@@ -44,8 +44,18 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Last modified files
-        run: git diff --name-only HEAD^ HEAD
+      # Check last modified files in specific directories
+      - name: Check Last Modified Terraform Files
+        id: changed-files
+        run: |
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | grep "environments/${{ matrix.env.account }}/")
+          if [[ -z "$CHANGED_FILES" ]]; then
+            echo "No Terraform files changed in the environment ${matrix.env.account}, skipping deployment."
+            exit 0
+          else
+            echo "Modified files in ${matrix.env.account}:"
+            echo "$CHANGED_FILES"
+          fi
       
       # 2. Setup Terraform CLI with the desired version.
       - name: Setup Terraform
