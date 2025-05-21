@@ -43,6 +43,9 @@ jobs:
       # 1. Checkout your repository containing your Terraform configuration.
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Last modified files
+        run: git diff --name-only HEAD^ HEAD
       
       # 2. Setup Terraform CLI with the desired version.
       - name: Setup Terraform
