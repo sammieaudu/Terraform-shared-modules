@@ -31,12 +31,6 @@ permissions:
   actions: write
   pull-requests: write
 
-# Environment protection rules
-environments:
-  terraform-destroy:
-    name: Terraform Destroy Approval
-    url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -99,12 +93,15 @@ jobs:
             echo "matrix={\"env\":[]}" >> $GITHUB_OUTPUT
           fi
 
-  deploy:
+  build:
     needs: detect-changes
     if: ${{ fromJson(needs.detect-changes.outputs.matrix).env != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    outputs:
+      plan_file: ${{ steps.plan.outputs.plan_file }}
+      tfsec_results: ${{ steps.tfsec.outputs.results }}
     
     # Git Action Env
     env:
@@ -215,6 +212,7 @@ jobs:
           terraform plan -input=false -out=tfplan > plan.txt
           if [ $? -eq 0 ]; then
             echo "✅ Terraform plan succeeded"
+            echo "plan_file=tfplan" >> $GITHUB_OUTPUT
           else
             echo "❌ Terraform plan failed"
             # Print the full log on failure
@@ -301,23 +299,68 @@ jobs:
               })
             }
 
-      # 10. Apply Terraform changes
-      - name: Terraform Apply
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
-        id: apply
+  deploy:
+    needs: build
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix).env != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    
+    # Git Action Env
+    env:
+      AWS_ROLE: ${{ secrets[matrix.env.role] }}
+      AWS_REGION: us-east-1
+      PLAN_FILE: ${{ needs.build.outputs.plan_file }}
+      TFSEC_RESULTS: ${{ needs.build.outputs.tfsec_results }}
+
+    steps:
+      # 1. Checkout your repository containing your Terraform configuration.
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Setup Terraform CLI with the desired version.
+      - name: Setup Terraform
+        if: success()
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+
+      # 3. Configure AWS Credentials using assumed role via GitHub OIDC.
+      - name: Configure AWS Credentials via OIDC
+        id: AWS_ODIC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets[matrix.env.role] }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      # 4. Initialize Terraform
+      - name: Terraform Init
+        if: success()
+        id: init
         run: |
           cd environments/${{ matrix.env.account }}
-          if terraform apply -auto-approve tfplan; then
+          terraform init -input=false
+
+      # 5. Apply Terraform changes
+      - name: Terraform Apply
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+        id: tf_apply
+        run: |
+          cd environments/${{ matrix.env.account }}
+          if terraform apply -auto-approve ${{ env.PLAN_FILE }}; then
             echo "✅ Terraform apply succeeded"
           else
             echo "❌ Terraform apply failed"
             exit 1
           fi
 
-      # 11. Destroy resources if needed
+      # 6. Destroy resources if needed
       - name: Terraform Destroy
         if: github.event_name == 'workflow_dispatch' && inputs.destroy_resources == true
-        id: destroy
+        id: tf_destroy
         run: |
           cd environments/${{ matrix.env.account }}
           # Create destroy plan
