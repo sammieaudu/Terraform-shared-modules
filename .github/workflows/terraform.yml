@@ -46,37 +46,44 @@ jobs:
       - name: Set Matrix
         id: set-matrix
         run: |
-          # Initialize empty array
-          ENV_ARRAY="[]"
+          # Initialize matrix string
+          MATRIX_STR=""
           
-          # Debug: Print changed files
-          echo "Changed files: ${{ steps.changed-files.outputs.all_changed_files }}"
-          
-          # Check each environment and build array
+          # Check each environment and build matrix string
           if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_backend/"* ]]; then
-            ENV_ARRAY=$(echo $ENV_ARRAY | jq -c '. += [{"account": "dex_backend", "role": "DEX_BACKEND_AWS_ROLE_ARN"}]')
-          fi
-          if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_frontend/"* ]]; then
-            ENV_ARRAY=$(echo $ENV_ARRAY | jq -c '. += [{"account": "dex_frontend", "role": "DEX_FRONTEND_AWS_ROLE_ARN"}]')
-          fi
-          if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_nonprod/"* ]]; then
-            ENV_ARRAY=$(echo $ENV_ARRAY | jq -c '. += [{"account": "dex_nonprod", "role": "DEX_NONPROD_AWS_ROLE_ARN"}]')
-          fi
-          if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_prod/"* ]]; then
-            ENV_ARRAY=$(echo $ENV_ARRAY | jq -c '. += [{"account": "dex_prod", "role": "DEX_PROD_AWS_ROLE_ARN"}]')
+            if [ -n "$MATRIX_STR" ]; then
+              MATRIX_STR="$MATRIX_STR,"
+            fi
+            MATRIX_STR="$MATRIX_STR{\"account\":\"dex_backend\",\"role\":\"DEX_BACKEND_AWS_ROLE_ARN\"}"
           fi
           
-          # Debug: Print the array
-          echo "Environment array: $ENV_ARRAY"
+          if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_frontend/"* ]]; then
+            if [ -n "$MATRIX_STR" ]; then
+              MATRIX_STR="$MATRIX_STR,"
+            fi
+            MATRIX_STR="$MATRIX_STR{\"account\":\"dex_frontend\",\"role\":\"DEX_FRONTEND_AWS_ROLE_ARN\"}"
+          fi
+          
+          if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_nonprod/"* ]]; then
+            if [ -n "$MATRIX_STR" ]; then
+              MATRIX_STR="$MATRIX_STR,"
+            fi
+            MATRIX_STR="$MATRIX_STR{\"account\":\"dex_nonprod\",\"role\":\"DEX_NONPROD_AWS_ROLE_ARN\"}"
+          fi
+          
+          if [[ "${{ steps.changed-files.outputs.all_changed_files }}" == *"environments/dex_prod/"* ]]; then
+            if [ -n "$MATRIX_STR" ]; then
+              MATRIX_STR="$MATRIX_STR,"
+            fi
+            MATRIX_STR="$MATRIX_STR{\"account\":\"dex_prod\",\"role\":\"DEX_PROD_AWS_ROLE_ARN\"}"
+          fi
           
           # Create final matrix JSON
-          MATRIX=$(jq -n --argjson env "$ENV_ARRAY" '{"env": $env}')
-          
-          # Debug: Print final matrix
-          echo "Final matrix: $MATRIX"
-          
-          # Set output
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          if [ -n "$MATRIX_STR" ]; then
+            echo "matrix={\"env\":[$MATRIX_STR]}" >> $GITHUB_OUTPUT
+          else
+            echo "matrix={\"env\":[]}" >> $GITHUB_OUTPUT
+          fi
 
   deploy:
     needs: detect-changes
