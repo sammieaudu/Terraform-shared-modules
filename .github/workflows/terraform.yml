@@ -2,7 +2,7 @@ name: Terraform Multi-Account Deployment
 on:
   push:
     branches:
-      - '**'
+      - main
     paths:
       - "environments/dex_backend/**"
       - "environments/dex_frontend/**"
@@ -10,19 +10,19 @@ on:
       - "environments/dex_prod/**"
   pull_request:
     branches:
-      - '**'
+      - release/*
     paths:
       - "environments/dex_backend/**"
       - "environments/dex_frontend/**"
       - "environments/dex_nonprod/**"
       - "environments/dex_prod/**"
-  workflow_dispatch:
-    inputs:
-      destroy_resources:
-        description: 'Destroy Terraform resources'
-        required: true
-        type: boolean
-        default: false
+  # workflow_dispatch:
+  #   inputs:
+  #     destroy_resources:
+  #       description: 'Destroy Terraform resources'
+  #       required: true
+  #       type: boolean
+  #       default: false
 
 # Permissions
 permissions:
@@ -376,23 +376,23 @@ jobs:
             exit 1
           fi
 
-      # 7. Destroy resources if needed
-      - name: Terraform Destroy
-        if: github.event_name == 'workflow_dispatch' && inputs.destroy_resources == true
-        id: tf_destroy
-        run: |
-          cd environments/${{ matrix.env.account }}
-          # Create destroy plan
-          if terraform plan -destroy -out=destroy.tfplan; then
-            echo "✅ Terraform destroy plan created"
-            # Apply destroy plan
-            if terraform apply -auto-approve destroy.tfplan; then
-              echo "✅ Terraform destroy succeeded"
-            else
-              echo "❌ Terraform destroy failed"
-              exit 1
-            fi
-          else
-            echo "❌ Terraform destroy plan failed"
-            exit 1
-          fi
+      # # 7. Destroy resources if needed
+      # - name: Terraform Destroy
+      #   if: github.event_name == 'workflow_dispatch' && inputs.destroy_resources == true
+      #   id: tf_destroy
+      #   run: |
+      #     cd environments/${{ matrix.env.account }}
+      #     # Create destroy plan
+      #     if terraform plan -destroy -out=destroy.tfplan; then
+      #       echo "✅ Terraform destroy plan created"
+      #       # Apply destroy plan
+      #       if terraform apply -auto-approve destroy.tfplan; then
+      #         echo "✅ Terraform destroy succeeded"
+      #       else
+      #         echo "❌ Terraform destroy failed"
+      #         exit 1
+      #       fi
+      #     else
+      #       echo "❌ Terraform destroy plan failed"
+      #       exit 1
+      #     fi
