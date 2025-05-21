@@ -91,11 +91,19 @@ jobs:
         run: |
           cd environments/${{ matrix.env.account }}
           terraform --version
+          # Enable debug logging
+          export TF_LOG=DEBUG
+          export TF_LOG_PATH=terraform.log
+          # Initialize with debug output
           terraform init -input=false
           if [ $? -eq 0 ]; then
             echo "✅ Terraform init succeeded"
+            # Print the last 100 lines of the log for debugging
+            tail -n 100 terraform.log
           else
             echo "❌ Terraform init failed"
+            # Print the full log on failure
+            cat terraform.log
             exit 1
           fi
 
@@ -104,11 +112,14 @@ jobs:
         if: success()
         run: |
           cd environments/${{ matrix.env.account }}
+          # Run validate with debug output
           terraform validate -json
           if [ $? -eq 0 ]; then
             echo "✅ Terraform validate succeeded"
           else
             echo "❌ Terraform validate failed"
+            # Print the full log on failure
+            cat terraform.log
             exit 1
           fi
 
@@ -117,11 +128,14 @@ jobs:
         if: success()
         run: |
           cd environments/${{ matrix.env.account }}
+          # Run plan with debug output
           terraform plan -input=false -out=tfplan
           if [ $? -eq 0 ]; then
             echo "✅ Terraform plan succeeded"
           else
             echo "❌ Terraform plan failed"
+            # Print the full log on failure
+            cat terraform.log
             exit 1
           fi
 
