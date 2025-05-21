@@ -221,7 +221,16 @@ jobs:
             exit 1
           fi
 
-      # 10. Comment PR with Terraform results
+      # 10. Upload plan file
+      - name: Upload plan file
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ matrix.env.account }}
+          path: environments/${{ matrix.env.account }}/tfplan
+          retention-days: 1
+
+      # 11. Comment PR with Terraform results
       - name: Comment PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
@@ -346,7 +355,15 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           mask-aws-account-id: true
 
-      # 5. Initialize Terraform
+      # 5. Download plan file
+      - name: Download plan file
+        if: success()
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ matrix.env.account }}
+          path: environments/${{ matrix.env.account }}
+
+      # 6. Initialize Terraform
       - name: Terraform Init
         if: success()
         id: init
@@ -354,13 +371,13 @@ jobs:
           cd environments/${{ matrix.env.account }}
           terraform init -input=false
 
-      # 6. Apply Terraform changes
+      # 7. Apply Terraform changes
       - name: Terraform Apply
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
         id: tf_apply
         run: |
           cd environments/${{ matrix.env.account }}
-          if terraform apply -auto-approve ${{ env.PLAN_FILE }}; then
+          if terraform apply -auto-approve tfplan; then
             echo "✅ Terraform apply succeeded"
           else
             echo "❌ Terraform apply failed"
