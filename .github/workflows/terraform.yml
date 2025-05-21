@@ -63,8 +63,8 @@ jobs:
       - name: Setup Terraform
         if: success()
         uses: hashicorp/setup-terraform@v3
-        # with:
-        #   terraform_version: "1.6.0"
+        with:
+          terraform_version: "1.5.7"
 
       # 3. Configure AWS Credentials using assumed role via GitHub OIDC.
       - name: Configure AWS Credentials via OIDC

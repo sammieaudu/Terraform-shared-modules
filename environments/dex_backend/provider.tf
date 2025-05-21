@@ -5,6 +5,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.23.0"
+    }
   }
 }
 
@@ -19,4 +23,3 @@ provider "aws" {
   skip_region_validation      = true
   skip_credentials_validation = true
 }
-
