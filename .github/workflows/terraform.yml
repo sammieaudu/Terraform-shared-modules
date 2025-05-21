@@ -5,10 +5,16 @@ on:
       - main
       - release/*
     paths:
-      - "environments/${{ github.event.pull_request.base.ref }}/**"
+      - "environments/dex_backend/**"
+      - "environments/dex_frontend/**"
+      - "environments/dex_nonprod/**"
+      - "environments/dex_prod/**"
   pull_request:
     paths:
-      - "environments/${{ github.event.pull_request.base.ref }}/**"
+      - "environments/dex_backend/**"
+      - "environments/dex_frontend/**"
+      - "environments/dex_nonprod/**"
+      - "environments/dex_prod/**"
 
 # Permissions
 permissions:
