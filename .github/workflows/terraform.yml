@@ -155,7 +155,7 @@ jobs:
           working_directory: environments/${{ matrix.env.account }}
           soft_fail: true
           format: json
-          output_path: tfsec-results.json
+          additional_args: --out-file tfsec-results.json
 
       # 6. Initialize Terraform
       - name: Terraform Init
@@ -300,7 +300,7 @@ jobs:
             }
 
   deploy:
-    needs: build
+    needs: [detect-changes, build]
     if: ${{ fromJson(needs.detect-changes.outputs.matrix).env != '[]' }}
     runs-on: ubuntu-latest
     strategy:
