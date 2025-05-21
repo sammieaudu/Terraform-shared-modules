@@ -63,11 +63,12 @@ jobs:
       - name: Setup Terraform
         if: success()
         uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.6.0"
+        # with:
+        #   terraform_version: "1.6.0"
 
       # 3. Configure AWS Credentials using assumed role via GitHub OIDC.
       - name: Configure AWS Credentials via OIDC
+        id: AWS_ODIC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets[matrix.env.role] }}
@@ -76,18 +77,22 @@ jobs:
       # 4. Check Terraform format
       - name: Terraform Format
         if: success()
+        id: fmt
         run: |
           cd environments/${{ matrix.env.account }}
           if terraform fmt -check; then
             echo "✅ Terraform format succeeded"
+            echo "stdout=Format check passed" >> $GITHUB_OUTPUT
           else
             echo "Terraform format failed"
+            echo "stdout=Format check failed" >> $GITHUB_OUTPUT
             exit 1
           fi
 
       # 5. Initialize Terraform
       - name: Terraform Init
         if: success()
+        id: init
         run: |
           cd environments/${{ matrix.env.account }}
           terraform --version
@@ -98,6 +103,7 @@ jobs:
           terraform init -input=false
           if [ $? -eq 0 ]; then
             echo "✅ Terraform init succeeded"
+            echo "stdout=Initialization successful" >> $GITHUB_OUTPUT
             # Print the last 100 lines of the log for debugging
             tail -n 100 terraform.log
           else
@@ -110,10 +116,14 @@ jobs:
       # 6. Validate Terraform configuration
       - name: Terraform Validate
         if: success()
+        id: validate
         run: |
           cd environments/${{ matrix.env.account }}
           # Run validate with debug output
-          terraform validate -json
+          VALIDATE_OUTPUT=$(terraform validate -no-color)
+          echo "stdout<<EOF" >> $GITHUB_OUTPUT
+          echo "$VALIDATE_OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
           if [ $? -eq 0 ]; then
             echo "✅ Terraform validate succeeded"
           else
@@ -126,10 +136,14 @@ jobs:
       # 7. Generate Terraform execution plan
       - name: Terraform Plan
         if: success()
+        id: plan
         run: |
           cd environments/${{ matrix.env.account }}
           # Run plan with debug output
-          terraform plan -input=false -out=tfplan
+          PLAN_OUTPUT=$(terraform plan -input=false -out=tfplan)
+          echo "stdout<<EOF" >> $GITHUB_OUTPUT
+          echo "$PLAN_OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
           if [ $? -eq 0 ]; then
             echo "✅ Terraform plan succeeded"
           else
@@ -138,6 +152,66 @@ jobs:
             cat terraform.log
             exit 1
           fi
+
+      # 8. Comment PR with Terraform results
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // 1. Retrieve existing bot comments for the PR
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+            const botComment = comments.find(comment => {
+              return comment.user.type === 'Bot' && comment.body.includes('Terraform Format and Style')
+            })
+
+            // 2. Prepare format of the comment
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+            <details><summary>Validation Output</summary>
+
+            \`\`\`\n
+            ${{ steps.validate.outputs.stdout }}
+            \`\`\`
+
+            </details>
+
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`\n
+            ${process.env.PLAN}
+            \`\`\`
+
+            </details>
+
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ matrix.env.account }}\`, Workflow: \`${{ github.workflow }}\`*`;
+
+            // 3. If we have a comment, update it, otherwise create a new one
+            if (botComment) {
+              github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: output
+              })
+            } else {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: output
+              })
+            }
 
       # Apply Terraform execution plan
       # - name: Terraform Apply
