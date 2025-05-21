@@ -43,6 +43,8 @@ jobs:
       # 1. Checkout your repository containing your Terraform configuration.
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Check last modified files in specific directories
       - name: Check Last Modified Terraform Files
@@ -59,6 +61,7 @@ jobs:
       
       # 2. Setup Terraform CLI with the desired version.
       - name: Setup Terraform
+        if: success()
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.6.0"
@@ -72,6 +75,7 @@ jobs:
 
       # 4. Check Terraform format
       - name: Terraform Format
+        if: success()
         run: |
           cd environments/${{ matrix.env.account }}
           if terraform fmt -check; then
@@ -83,6 +87,7 @@ jobs:
 
       # 5. Initialize Terraform
       - name: Terraform Init
+        if: success()
         run: |
           cd environments/${{ matrix.env.account }} || exit 1
           terraform --version
@@ -96,6 +101,7 @@ jobs:
 
       # 6. Validate Terraform configuration
       - name: Terraform Validate
+        if: success()
         run: |
           cd environments/${{ matrix.env.account }} || exit 1
           if terraform validate; then
@@ -107,6 +113,7 @@ jobs:
 
       # 7. Generate Terraform execution plan
       - name: Terraform Plan
+        if: success()
         run: |
           cd environments/${{ matrix.env.account }} || exit 1
           if terraform plan -out=tfplan; then
