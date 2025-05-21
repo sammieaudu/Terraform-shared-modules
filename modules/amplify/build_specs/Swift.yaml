@@ -1,0 +1,16 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - pod install
+    build:
+      commands:
+        - xcodebuild -workspace YourApp.xcworkspace -scheme YourApp -sdk iphoneos -configuration Release
+  artifacts:
+    baseDirectory: build/ios
+    files:
+      - '**/*.ipa'
+  cache:
+    paths:
+      - Pods/**/*

@@ -2,7 +2,6 @@
 **/**/.terraform.lock.hcl
 ***/***/terraform.tfstat*
 ***/***/.terraform.tfstat*
-***/***/build*
 ***/** */builds/** */
 
 .DS_Store

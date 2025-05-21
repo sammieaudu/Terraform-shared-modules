@@ -1,0 +1,16 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - flutter pub get
+    build:
+      commands:
+        - flutter build apk
+  artifacts:
+    baseDirectory: build/app/outputs/flutter-apk
+    files:
+      - '**/*.apk'
+  cache:
+    paths:
+      - .pub-cache/**/*

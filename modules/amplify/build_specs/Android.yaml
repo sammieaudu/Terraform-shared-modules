@@ -1,0 +1,17 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - ./gradlew dependencies
+    build:
+      commands:
+        - ./gradlew assembleRelease
+  artifacts:
+    baseDirectory: app/build/outputs/apk/release
+    files:
+      - '**/*.apk'
+  cache:
+    paths:
+      - ~/.gradle/caches/**/*
+      - ~/.gradle/wrapper/**/*
