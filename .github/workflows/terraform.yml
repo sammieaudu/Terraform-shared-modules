@@ -156,7 +156,7 @@ jobs:
           working_directory: environments/${{ matrix.env.account }}
           soft_fail: true
           format: json
-          additional_args: --out-file tfsec-results.json
+          additional_args: --out tfsec-results.json
 
       # 7. Initialize Terraform
       - name: Terraform Init
