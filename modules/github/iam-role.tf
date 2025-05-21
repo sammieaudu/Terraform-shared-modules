@@ -30,10 +30,10 @@ resource "aws_iam_role" "github_actions_role" {
         Action = "sts:AssumeRoleWithWebIdentity",
         Condition = {
           StringEquals = {
-            "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+            "token.actions.githubusercontent.com:aud" : "sts.amazonaws.com"
           },
-          StringLike: {
-            "token.actions.githubusercontent.com:sub": "repo:${var.github_org_or_user}/*:ref:refs/heads/*"
+          StringLike : {
+            "token.actions.githubusercontent.com:sub" : "repo:${var.github_org_or_user}/*:*"
           }
         }
       }
@@ -43,31 +43,23 @@ resource "aws_iam_role" "github_actions_role" {
 
 # Custom IAM policy with scoped permissions
 resource "aws_iam_policy" "github_actions_provisioning_policy" {
-  name = "GitHubActionsTerraformProvisioningPolicy"
+  name = "GHA_TF_ProvisioningPolicy"
 
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Effect = "Allow",
-        Action = [
-          "s3:*",
-          "dynamodb:*",
-          "ec2:*",
-          "iam:*",
-          "eks:*",
-          "ecr:*",
-          "codeartifact:*"
-        ],
+        Effect   = "Allow",
+        Action   = "*",
         Resource = "*"
       },
       {
-        Effect = "Allow",
-        Action = "sts:GetServiceBearerToken",
+        Effect   = "Allow",
+        Action   = "sts:GetServiceBearerToken",
         Resource = "*",
         Condition = {
           StringEquals = {
-            "sts:AWSServiceName": "codeartifact.amazonaws.com"
+            "sts:AWSServiceName" : "codeartifact.amazonaws.com"
           }
         }
       }
@@ -90,17 +82,17 @@ variable "aws_region" {
 variable "aws_account_id" {
   description = "AWS Account ID"
   type        = string
-  default     = "920864529120"
+  default     = "986323537898"
 }
 
 variable "github_actions_role_name" {
   description = "Name of the IAM Role for GitHub Actions"
   type        = string
-  default     = "github-actions-role"
+  default     = "openid-gha-role"
 }
 
 variable "github_org_or_user" {
   description = "GitHub Organization or User"
   type        = string
-  default     = "soaudu1"
+  default     = "sammieaudu"
 }

@@ -1,0 +1,109 @@
+name: Terraform Multi-Account Deployment
+on:
+  push:
+    branches:
+      - main
+      - release/*
+    paths:
+      - "environments/${{ github.event.pull_request.base.ref }}/**"
+  pull_request:
+    paths:
+      - "environments/${{ github.event.pull_request.base.ref }}/**"
+
+# Permissions
+permissions:
+  contents: read
+  id-token: write 
+  security-events: write
+  actions: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env:
+          - { account: dex_backend, role: DEX_BACKEND_AWS_ROLE_ARN }
+          - { account: dex_frontend, role: DEX_FRONTEND_AWS_ROLE_ARN }
+          - { account: dex_nonprod, role: DEX_NONPROD_AWS_ROLE_ARN }
+          - { account: dex_prod, role: DEX_PROD_AWS_ROLE_ARN }
+    
+    # Git Action Env
+    env:
+      AWS_ROLE: ${{ secrets[matrix.env.role] }}
+      AWS_REGION: us-east-1
+
+    steps:
+      # 1. Checkout your repository containing your Terraform configuration.
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      # 2. Setup Terraform CLI with the desired version.
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.6.0"
+
+      # 3. Configure AWS Credentials using assumed role via GitHub OIDC.
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets[matrix.env.role] }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 4. Check Terraform format
+      - name: Terraform Format
+        run: |
+          cd environments/${{ matrix.env.account }}
+          if terraform fmt -check; then
+            echo "✅ Terraform format succeeded"
+          else
+            echo "Terraform format failed"
+            exit 1
+          fi
+
+      # 5. Initialize Terraform
+      - name: Terraform Init
+        run: |
+          cd environments/${{ matrix.env.account }} || exit 1
+          terraform --version
+          if terraform init --upgrade=true; then
+            echo "✅ Terraform init succeeded"
+          else
+            echo "Terraform init failed"
+            exit 1
+          fi
+
+      # 6. Validate Terraform configuration
+      - name: Terraform Validate
+        run: |
+          cd environments/${{ matrix.env.account }} || exit 1
+          if terraform validate; then
+            echo "✅ Terraform validate succeeded"
+          else
+            echo "Terraform validate failed"
+            exit 1
+          fi
+
+      # 7. Generate Terraform execution plan
+      - name: Terraform Plan
+        run: |
+          cd environments/${{ matrix.env.account }} || exit 1
+          if terraform plan -out=tfplan; then
+            echo "✅ Terraform plan succeeded"
+          else
+            echo "Terraform plan failed"
+            exit 1
+          fi
+
+      # Apply Terraform execution plan
+      # - name: Terraform Apply
+      #   if: github.event_name == 'push' && github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
+      #   run: |
+      #     cd environments/${{ matrix.env.account }} || exit 1
+      #     if terraform apply -auto-approve; then
+      #       echo "✅ Terraform apply succeeded"
+      #     else
+      #       echo "Terraform apply failed"
+      #       exit 1
+      #     fi
