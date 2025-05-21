@@ -73,6 +73,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets[matrix.env.role] }}
           aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
 
       # 4. Check Terraform format
       - name: Terraform Format
@@ -99,6 +100,7 @@ jobs:
           # Enable debug logging
           export TF_LOG=DEBUG
           export TF_LOG_PATH=terraform.log
+          
           # Initialize with debug output
           terraform init -input=false
           if [ $? -eq 0 ]; then
