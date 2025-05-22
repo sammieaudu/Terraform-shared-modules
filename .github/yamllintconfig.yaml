@@ -1,0 +1,21 @@
+---
+# Configuration for linting YAML files
+
+extends: default
+
+# Helm charts are not valid YAML files even though they use the .yaml ending. Since they use templating, they need to
+# be preprocessed before they can be linted by yamllint. YAML linting of Helm charts is therefore disabled for now.
+# For background, see for instance: https://github.com/adrienverge/yamllint/issues/69
+ignore:
+  - '**/helm/**'
+  - '**/helm-*/**'
+  - '.github/**'
+
+rules:
+  comments-indentation: disable
+  document-start: disable
+  line-length:
+    level: warning
+    max: 180
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
