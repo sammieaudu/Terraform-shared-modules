@@ -20,9 +20,9 @@ module "s3" {
 # Code Artifacts
 ################################################
 module "artifact" {
-  source = "../../modules/codeartifact"
-  env = var.env
-  repository_name = var.artifact_repo
+  source               = "../../modules/codeartifact"
+  env                  = var.env
+  repository_name      = var.artifact_repo
   external_connections = var.external_packages
 }
 
