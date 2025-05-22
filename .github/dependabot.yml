@@ -5,6 +5,42 @@
 
 version: 2
 updates:
+  - package-ecosystem: "terraform"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "terraform"
+      - "dependencies"
+    commit-message:
+      prefix: "terraform"
+      include: "scope"
+    groups:
+      terraform:
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "github-actions"
+      - "dependencies"
+    commit-message:
+      prefix: "github-actions"
+      include: "scope"
+    groups:
+      actions:
+        update-types:
+          - "minor"
+          - "patch"
+
   - package-ecosystem: "gomod" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
@@ -15,30 +51,8 @@ updates:
         update-types:
           - "patch"
 
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 10
-    groups:
-      actions:
-        update-types:
-          - "minor"
-          - "patch"
-
-  - package-ecosystem: "terraform"
-    directory: "/"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 10
-    groups:
-      npm:
-        update-types:
-          - "minor"
-          - "patch"
-
   - package-ecosystem: "helm"
-    directory: "/" # Location of composer.json file
+    directory: "/" # Location of kubernetes manifests
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
