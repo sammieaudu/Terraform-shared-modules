@@ -9,6 +9,7 @@ extends: default
 ignore:
   - '**/helm/**'
   - '**/helm-*/**'
+  - '.github/**'
 
 rules:
   comments-indentation: disable
