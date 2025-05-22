@@ -1,15 +1,19 @@
 output "domain_name" {
   value = aws_codeartifact_domain.this.domain
+  depends_on = [aws_kms_key.this, aws_codeartifact_domain.this]
 }
 
-output "repository_name" {
-  value = aws_codeartifact_repository.this.repository
+output "repository_names" {
+  value = { for k, v in aws_codeartifact_repository.this : k => v.repository }
+  depends_on = [aws_kms_key.this, aws_codeartifact_repository.this]
 }
 
-output "repository_arn" {
-  value = aws_codeartifact_repository.this.arn
+output "repository_arns" {
+  value = { for k, v in aws_codeartifact_repository.this : k => v.arn }
+  depends_on = [aws_kms_key.this, aws_codeartifact_repository.this]
 }
 
-output "repository_endpoint" {
-  value = data.aws_codeartifact_repository_endpoint.this.repository_endpoint
+output "repository_endpoints" {
+  value = { for k, v in data.aws_codeartifact_repository_endpoint.this : k => v.repository_endpoint }
+  depends_on = [aws_kms_key.this, data.aws_codeartifact_repository_endpoint.this]
 }

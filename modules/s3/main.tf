@@ -25,11 +25,17 @@ module "s3_bucket" {
         days = 30
       }
 
-        noncurrent_version_expiration = {
+      transition = {
+      days          = 30
+      storage_class = "STANDARD_IA"
+      }
+
+      noncurrent_version_expiration = {
         newer_noncurrent_versions = 5
         days = 30
-        }
+      }
     }
-    ]
-    tags = local.tags
-  }
+  ]
+  
+  tags = local.tags
+}

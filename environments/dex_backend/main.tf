@@ -15,6 +15,17 @@ module "s3" {
   region       = var.region
   buckets_list = var.buckets_list
 }
+
+################################################
+# Code Artifacts
+################################################
+module "artifact" {
+  source               = "../../modules/codeartifact"
+  env                  = var.env
+  repository_name      = var.artifact_repo
+  external_connections = var.external_packages
+}
+
 ################################################
 # IAM Configuration
 ################################################

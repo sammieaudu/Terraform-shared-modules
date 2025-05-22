@@ -23,6 +23,18 @@ variable "buckets_list" {
 }
 
 ################################################
+# Code Artifacts
+################################################
+variable "artifact_repo" {
+  description = "Name of the CodeArtifact repository"
+  type        = string
+}
+
+variable "external_packages" {
+  description = "Optional list of external connections like public:npmjs"
+  type        = map(string)
+}
+################################################
 # VPC Netwok
 ################################################
 
