@@ -1,0 +1,33 @@
+---
+    name: Lint YAML files - Dex
+    
+    on:
+      push:
+        branches:
+          - main
+        paths:
+          - '**/*.yaml'
+          - '**/*.yml'
+          # Helm charts are not valid YAML files, even though they use the .yaml ending, so they are excluded from YAML
+          # linting. See also the comment on this in the yamllint configuration file .github/yamllint.yaml.
+          - '!**/helm/**'
+          - '!**/helm-*/**'
+      pull_request:
+        paths:
+          - '**/*.yaml'
+          - '**/*.yml'
+          # Helm charts are not valid YAML files, even though they use the .yaml ending, so they are excluded from YAML
+          # linting. See also the comment on this in the yamllint configuration file .github/yamllint.yaml.
+          - '!**/helm/**'
+          - '!**/helm-*/**'
+    
+    jobs:
+      yaml-linter:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+          - name: Lint YAML files
+            uses: ibiqlik/action-yamllint@v3
+            with:
+              config_file: .github/yamllintconfig.yaml
+    
