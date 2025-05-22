@@ -1,20 +1,43 @@
-resource "aws_codeartifact_domain" "this" {
-  domain = var.domain_name
-  tags   = var.tags
+// Code Artifact KMS
+resource "aws_kms_key" "this" {
+  description = "domain key"
+  enable_key_rotation = true
+  rotation_period_in_days = 90
 }
 
-resource "aws_codeartifact_repository" "this" {
-  repository = var.repository_name
-  domain     = aws_codeartifact_domain.this.domain
-  description = var.description
+// Code Artifact Domain
+resource "aws_codeartifact_domain" "this" {
+  domain = var.env
+  encryption_key = aws_kms_key.this.arn
+  tags   = local.tags
+  depends_on = [aws_kms_key.this]
+}
 
-  dynamic "external_connections" {
-    for_each = var.external_connections
-    content {
-      external_connection_name = external_connections.value
-    }
+resource "aws_codeartifact_domain_permissions_policy" "test" {
+  domain          = aws_codeartifact_domain.this.domain
+  policy_document = data.aws_iam_policy_document.artifactPolicy.json
+  depends_on = [ aws_kms_key.this, aws_codeartifact_domain.this, data.aws_iam_policy_document.artifactPolicy]
+}
+
+// Code Artifact Repository
+resource "aws_codeartifact_repository" "this" {
+  for_each = { for k, v in var.external_connections: k => v }
+  repository = "${var.repository_name}-${each.key}"
+  domain     = aws_codeartifact_domain.this.domain
+  description = "Code Artifact Repo for ${var.env}"
+
+  external_connections{
+      external_connection_name = "public:${each.value}"
   }
 
+  tags = local.tags
+  depends_on = [aws_kms_key.this, aws_codeartifact_domain.this]
+}
 
-  tags = var.tags
+resource "aws_codeartifact_repository_permissions_policy" "this" {
+  for_each = aws_codeartifact_repository.this
+  repository      = each.value.repository
+  domain          = aws_codeartifact_domain.this.domain
+  policy_document = data.aws_iam_policy_document.artifactPolicy.json
+  depends_on = [aws_kms_key.this, aws_codeartifact_domain.this, aws_codeartifact_repository.this, data.aws_iam_policy_document.artifactPolicy]
 }
