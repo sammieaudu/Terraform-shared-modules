@@ -151,7 +151,7 @@ jobs:
       - name: Run tfsec
         if: success()
         id: tfsec
-        uses: aquasecurity/tfsec-action@v1.0.0
+        uses: aquasecurity/tfsec-action@v1.0.3
         with:
           working_directory: environments/${{ matrix.env.account }}
           soft_fail: true
