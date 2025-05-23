@@ -133,7 +133,6 @@ module "replica" {
   instance_class       = each.value.instance_class
   port                = each.value.port
 
-
   multi_az               = false
   vpc_security_group_ids = [module.rds_sg.security_group_id]
 
@@ -148,7 +147,7 @@ module "replica" {
 
   tags = local.tags
 
-  depends_on = [module.master,module.rds_sg]
+  depends_on = [module.master, module.rds_sg]
 }
 
 ################################################################################
