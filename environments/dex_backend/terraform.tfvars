@@ -1,7 +1,6 @@
 #aws_profile = "default"
 region  = "us-east-1"
 env     = "dex-backend"
-account = "986323537898"
 
 # S3 Buckets
 buckets_list = [{ name = "terraform-state-bucket", acl = "private" }]

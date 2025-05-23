@@ -65,7 +65,6 @@ module "eks" {
   tags = local.tags
 }
 
-
 ###############################
 # AWS EKS Cluster Authentication
 ###############################
@@ -73,6 +72,15 @@ data "aws_eks_cluster_auth" "cluster" {
   name = module.eks.cluster_name
   depends_on = [ module.eks ]
 }
+###############################
+# OIDC Provider Data Source for IRSA
+###############################
+data "aws_iam_openid_connect_provider" "oidc_provider" {
+  url = module.eks.cluster_oidc_issuer_url
+  depends_on = [ module.eks ]
+}
+
+data "aws_caller_identity" "current" {}
 
 ###############################
 # Kubernetes Provider
@@ -120,18 +128,9 @@ provider "helm" {
   }
 }
 
-###############################
-# OIDC Provider Data Source for IRSA
-###############################
-data "aws_iam_openid_connect_provider" "oidc_provider" {
-  url = module.eks.cluster_oidc_issuer_url
-  depends_on = [ module.eks ]
-}
-
-
-# ###############################################
+###############################################
 # EKS AUTH
-# ###############################################
+###############################################
 module "eks-auth" {
   source  = "terraform-aws-modules/eks/aws//modules/aws-auth"
   version = "~> 20.0"
@@ -140,7 +139,7 @@ module "eks-auth" {
 
   aws_auth_roles = [
     {
-      rolearn  = "arn:aws:iam::${var.account}:role/AmazonEKSClusterRole"
+      rolearn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/AmazonEKSClusterRole"
       username = "eksadmins"
       groups   = ["system:masters"]
     },
@@ -148,23 +147,22 @@ module "eks-auth" {
 
   aws_auth_users = [
     {
-      userarn  = "arn:aws:iam::${var.account}:group/Developers"
+      userarn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:group/Developers"
       username = "developers"
       groups   = ["system:masters"]
     },
     {
-      userarn  = "arn:aws:iam::${var.account}:group/DevOps"
+      userarn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:group/DevOps"
       username = "devops"
       groups   = ["system:masters"]
     },
   ]
 
-  # aws_auth_accounts = [
-  #   "${var.account}",
-  #   # "888888888888",
-  # ]
   depends_on = [ 
-    module.eks
+    module.eks,
+    data.aws_eks_cluster_auth.cluster,
+    data.aws_iam_openid_connect_provider.oidc_provider,
+    data.aws_caller_identity.current
   ]
 }
 
@@ -308,22 +306,9 @@ resource "helm_release" "cert_manager" {
     value = "true"
   }
 
-  depends_on = [module.eks]
+  depends_on = [module.eks, module.eks-auth]
 }
 
-# ##########################
-# # Metrics Server
-# ##########################
-# resource "helm_release" "metrics_server" {
-#   name       = "metrics-server"
-#   repository = "https://kubernetes-sigs.github.io/metrics-server/"
-#   chart      = "metrics-server"
-#   namespace  = "kube-system"
-#   version    = "1.8.23"  # Adjust as appropriate
-
-#   depends_on = [module.eks]
-# }
- 
 #######################################
 # ArgoCD
 #######################################
@@ -349,5 +334,5 @@ resource "helm_release" "argocd" {
     })
   ]
 
-  depends_on = [module.eks]
+  depends_on = [module.eks, module.eks-auth]
 }

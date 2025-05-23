@@ -65,10 +65,6 @@ variable "cluster_version" {
   description = "Kubernetes version to use for the EKS cluster"
   type        = string
 }
-variable "account" {
-  description = "AWS Account Number"
-  type        = string
-}
 
 ################################################
 # IAM Variables
