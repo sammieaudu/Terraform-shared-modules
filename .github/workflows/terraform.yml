@@ -92,7 +92,6 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
     outputs:
-      plan_file: ${{ steps.plan.outputs.plan_file }}
       tfsec_results: ${{ steps.tfsec.outputs.results }}
     
     # Git Action Env
@@ -213,7 +212,6 @@ jobs:
           terraform plan -input=false -out=tfplan > plan.txt
           if [ $? -eq 0 ]; then
             echo "✅ Terraform plan succeeded"
-            echo "plan_file=tfplan" >> $GITHUB_OUTPUT
           else
             echo "❌ Terraform plan failed"
             # Print the full log on failure
@@ -221,16 +219,7 @@ jobs:
             exit 1
           fi
 
-      # 10. Upload plan file
-      - name: Upload plan file
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfplan-${{ matrix.env.account }}
-          path: environments/${{ matrix.env.account }}/tfplan
-          retention-days: 1
-
-      # 11. Comment PR with Terraform results
+      # 10. Comment PR with Terraform results
       - name: Comment PR
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
@@ -320,8 +309,6 @@ jobs:
     env:
       AWS_ROLE: ${{ secrets[matrix.env.role] }}
       AWS_REGION: us-east-1
-      PLAN_FILE: ${{ needs.build.outputs.plan_file }}
-      TFSEC_RESULTS: ${{ needs.build.outputs.tfsec_results }}
 
     steps:
       # 1. Checkout your repository containing your Terraform configuration.
@@ -355,15 +342,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           mask-aws-account-id: true
 
-      # 5. Download plan file
-      - name: Download plan file
-        if: success()
-        uses: actions/download-artifact@v4
-        with:
-          name: tfplan-${{ matrix.env.account }}
-          path: environments/${{ matrix.env.account }}
-
-      # 6. Initialize Terraform
+      # 5. Initialize Terraform
       - name: Terraform Init
         if: success()
         id: init
@@ -371,13 +350,28 @@ jobs:
           cd environments/${{ matrix.env.account }}
           terraform init -input=false
 
+      # 6. Generate Terraform execution plan
+      - name: Terraform Plan
+        if: success()
+        id: plan
+        run: |
+          cd environments/${{ matrix.env.account }}
+          # Run plan with debug output
+          terraform plan -input=false
+          if [ $? -eq 0 ]; then
+            echo "✅ Terraform plan succeeded"
+          else
+            echo "❌ Terraform plan failed"
+            exit 1
+          fi
+
       # 7. Apply Terraform changes
       - name: Terraform Apply
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
         id: tf_apply
         run: |
           cd environments/${{ matrix.env.account }}
-          if terraform apply -auto-approve tfplan; then
+          if terraform apply -auto-approve; then
             echo "✅ Terraform apply succeeded"
           else
             echo "❌ Terraform apply failed"
