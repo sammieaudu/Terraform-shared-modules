@@ -9,6 +9,8 @@ on:
       - "environments/dex_nonprod/**"
       - "environments/dex_prod/**"
   pull_request:
+    branches:
+      - "*"
     paths:
       - "environments/dex_backend/**"
       - "environments/dex_frontend/**"
