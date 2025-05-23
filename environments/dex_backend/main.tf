@@ -33,6 +33,7 @@ module "ecr" {
   source = "../../modules/ecr"
   env    = var.env
 }
+
 ################################################
 # IAM Configuration
 ################################################
@@ -72,7 +73,6 @@ module "eks" {
   cluster_version     = var.cluster_version
   env                 = var.env
   region              = var.region
-  account             = var.account
   eks_vpc             = module.network.vpc_id
   eks_private_subnets = module.network.private_subnets
 }
