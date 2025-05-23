@@ -131,8 +131,6 @@ module "replica" {
   engine_version       = each.value.engine_version
   family = each.value.family 
   instance_class       = each.value.instance_class
-  allocated_storage    = each.value.min_storage
-  max_allocated_storage = each.value.max_storage
   port                = each.value.port
 
 
