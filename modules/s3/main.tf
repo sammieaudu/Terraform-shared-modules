@@ -22,12 +22,12 @@ module "s3_bucket" {
         prefix = ""
       }
       expiration = {
-        days = 30
+        days = 90
       }
 
       transition = {
-      days          = 30
-      storage_class = "STANDARD_IA"
+        days          = 30
+        storage_class = "STANDARD_IA"
       }
 
       noncurrent_version_expiration = {

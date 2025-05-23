@@ -5,6 +5,7 @@
         "description": "Keep last 10 tagged images",
         "selection": {
           "tagStatus": "tagged",
+          "tagPrefixList": ["v"],
           "countType": "imageCountMoreThan",
           "countNumber": 10
         },
