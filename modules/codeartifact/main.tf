@@ -26,8 +26,8 @@ resource "aws_codeartifact_repository" "this" {
   domain     = aws_codeartifact_domain.this.domain
   description = "Code Artifact Repo for ${var.env}"
 
-  external_connections{
-      external_connection_name = "public:${each.value}"
+  external_connections {
+    external_connection_name = "public:${each.value}"
   }
 
   tags = local.tags
@@ -40,4 +40,10 @@ resource "aws_codeartifact_repository_permissions_policy" "this" {
   domain          = aws_codeartifact_domain.this.domain
   policy_document = data.aws_iam_policy_document.artifactPolicy.json
   depends_on = [aws_kms_key.this, aws_codeartifact_domain.this, aws_codeartifact_repository.this, data.aws_iam_policy_document.artifactPolicy]
+}
+
+// Add a delay to allow external connections to be established
+resource "time_sleep" "wait_for_external_connections" {
+  depends_on = [aws_codeartifact_repository.this]
+  create_duration = "30s"
 }

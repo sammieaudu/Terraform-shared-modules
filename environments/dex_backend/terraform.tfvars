@@ -41,20 +41,20 @@ amp_config = [
   {
     name            = "popupuibackend",
     framework       = "React"
-    repo            = "https://github.com/react/app",
-    github_pat_path = "/amplify/auth",
-    branch_name     = "main",
-    stage           = "PRODUCTION",
+    repo            = "https://github.com/aws-samples/aws-amplify-react-sample"
+    github_pat_path = "/amplify/public"
+    branch_name     = "main"
+    stage           = "PRODUCTION"
     backend         = true
     domain_name     = "awsamplifyapp.com"
   },
   {
     name            = "angularuiform",
     framework       = "Angular"
-    repo            = "https://github.com/angular/app",
-    github_pat_path = "/amplify/auth",
-    branch_name     = "development",
-    stage           = "DEVELOPMENT",
+    repo            = "https://github.com/aws-samples/aws-amplify-angular-sample"
+    github_pat_path = "/amplify/public"
+    branch_name     = "main"
+    stage           = "DEVELOPMENT"
     backend         = false
     domain_name     = "awsamplifyapp.com"
   }

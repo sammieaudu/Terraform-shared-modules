@@ -1,4 +1,29 @@
 ################################################################################
+# RDS Monitoring Role
+################################################################################
+resource "aws_iam_role" "rds_monitoring_role" {
+  name = "rds-monitoring-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "monitoring.rds.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "rds_monitoring_policy" {
+  role       = aws_iam_role.rds_monitoring_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+}
+
+################################################################################
 # Generate Random Password
 ################################################################################
 resource "aws_secretsmanager_secret_version" "rds_secret_version_update" {
@@ -67,7 +92,7 @@ module "master" {
   performance_insights_retention_period = 7
   create_monitoring_role = false
   monitoring_interval                   = 60
-  monitoring_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/rds-monitoring-role"
+  monitoring_role_arn = aws_iam_role.rds_monitoring_role.arn
 
   parameters = [
     {
@@ -82,7 +107,7 @@ module "master" {
 
   tags = local.tags
 
-  depends_on = [module.rds_sg]
+  depends_on = [module.rds_sg, aws_iam_role.rds_monitoring_role]
 }
 
 ################################################################################
