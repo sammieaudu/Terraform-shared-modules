@@ -8,10 +8,10 @@ buckets_list = [{ name = "terraform-state-bucket", acl = "private" }]
 # Code Artifacts
 artifact_repo = "devpkg"
 external_packages = {
-  "npm"   = "npmjs"
-  "pypi"  = "pypi"
-  "maven" = "maven-central"
-  "nuget" = "nuget"
+  "npm"      = "npmjs"
+  "pypi"     = "pypi"
+  "maven"    = "maven-central"
+  "nuget"    = "nuget"
   "rubygems" = "rubygems"
 }
 # VPC Configuration
