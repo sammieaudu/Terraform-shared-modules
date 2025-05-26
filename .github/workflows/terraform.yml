@@ -375,5 +375,7 @@ jobs:
             echo "✅ Terraform apply succeeded"
           else
             echo "❌ Terraform apply failed"
+            terraform state rm module.s3
+            terraform destroy -auto-approve
             exit 1
           fi

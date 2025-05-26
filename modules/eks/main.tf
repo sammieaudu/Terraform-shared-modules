@@ -292,47 +292,47 @@ module "eks-auth" {
 ##########################
 # Cert Manager
 ##########################
-resource "helm_release" "cert_manager" {
-  name              = "cert-manager"
-  repository        = "https://charts.jetstack.io"
-  chart             = "cert-manager"
-  namespace         = "cert-manager"
-  create_namespace  = true
-  version           = "v1.17.2"  # Adjust as necessary
+# resource "helm_release" "cert_manager" {
+#   name              = "cert-manager"
+#   repository        = "https://charts.jetstack.io"
+#   chart             = "cert-manager"
+#   namespace         = "cert-manager"
+#   create_namespace  = true
+#   version           = "v1.17.2"  # Adjust as necessary
 
-  # Ensure CRDs are installed
-  set {
-    name  = "installCRDs"
-    value = "true"
-  }
+#   # Ensure CRDs are installed
+#   set {
+#     name  = "installCRDs"
+#     value = "true"
+#   }
 
-  depends_on = [module.eks, module.eks-auth]
-}
+#   depends_on = [module.eks, ]#module.eks-auth]
+# }
 
 #######################################
 # ArgoCD
 #######################################
-resource "helm_release" "argocd" {
-  name       = "argocd"
-  namespace  = "argocd"
-  repository = "https://argoproj.github.io/argo-helm"
-  chart      = "argo-cd"
-  version    = "5.46.7"
+# resource "helm_release" "argocd" {
+#   name       = "argocd"
+#   namespace  = "argocd"
+#   repository = "https://argoproj.github.io/argo-helm"
+#   chart      = "argo-cd"
+#   version    = "5.46.7"
 
-  create_namespace = true
+#   create_namespace = true
 
-  values = [
-    yamlencode({
-      server = {
-        service = {
-          type = "LoadBalancer"
-        }
-        ingress = {
-          enabled = false
-        }
-      }
-    })
-  ]
+#   values = [
+#     yamlencode({
+#       server = {
+#         service = {
+#           type = "LoadBalancer"
+#         }
+#         ingress = {
+#           enabled = false
+#         }
+#       }
+#     })
+#   ]
 
-  depends_on = [module.eks, module.eks-auth]
-}
+#   depends_on = [module.eks, ]#module.eks-auth]
+# }

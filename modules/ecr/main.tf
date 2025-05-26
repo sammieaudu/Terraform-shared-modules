@@ -22,6 +22,9 @@ resource "aws_ecr_repository" "this" {
     scan_on_push = true
   }
   tags_all = local.tags
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_ecr_lifecycle_policy" "this" {
