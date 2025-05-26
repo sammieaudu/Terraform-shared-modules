@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 module "s3_bucket" {
   source = "terraform-aws-modules/s3-bucket/aws"
 
@@ -32,6 +34,32 @@ module "s3_bucket" {
     target_prefix = "log/${local.name}-${var.buckets_list[count.index].name}/"
   }
 
+  # Block public access
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+
+  # Enable bucket policies
+  attach_policy = true
+  policy        = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "EnforceEncryption"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:PutObject"
+        Resource  = "arn:aws:s3:::${local.name}-${var.buckets_list[count.index].name}/*"
+        Condition = {
+          StringNotEquals = {
+            "s3:x-amz-server-side-encryption" = "aws:kms"
+          }
+        }
+      }
+    ]
+  })
+
   lifecycle_rule = [
     {
       id      = "expire_old_versions"
@@ -58,11 +86,38 @@ module "s3_bucket" {
   tags = local.tags
 }
 
+# Create explicit public access blocks for each bucket
+resource "aws_s3_bucket_public_access_block" "bucket_public_access_block" {
+  count = length(var.buckets_list)
+
+  bucket = "${local.name}-${var.buckets_list[count.index].name}"
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
 # Create KMS key for S3 encryption
 resource "aws_kms_key" "s3_key" {
   description             = "KMS key for S3 bucket encryption"
   deletion_window_in_days = 7
   enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      }
+    ]
+  })
 
   tags = local.tags
 }
@@ -110,6 +165,15 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "log_bucket_encryp
       sse_algorithm     = "aws:kms"
     }
   }
+}
+
+resource "aws_s3_bucket_public_access_block" "log_bucket_public_access_block" {
+  bucket = aws_s3_bucket.log_bucket.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "log_bucket_lifecycle" {
