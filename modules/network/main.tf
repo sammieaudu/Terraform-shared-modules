@@ -29,18 +29,21 @@ module "vpc" {
   enable_nat_gateway = true
   single_nat_gateway = true
 
-  # Enable VPC Flow Logs
+  # Enhanced VPC Flow Logs configuration
   enable_flow_log                      = true
   create_flow_log_cloudwatch_log_group = true
   create_flow_log_cloudwatch_iam_role  = true
   flow_log_max_aggregation_interval    = 60
+  flow_log_traffic_type                = "ALL"
+  flow_log_destination_type            = "cloud-watch-logs"
+  flow_log_log_format                  = "$${version} $${account-id} $${interface-id} $${srcaddr} $${dstaddr} $${srcport} $${dstport} $${protocol} $${packets} $${bytes} $${start} $${end} $${action} $${log-status}"
 
   # Configure Network ACLs
   public_dedicated_network_acl = true
   private_dedicated_network_acl = true
   database_dedicated_network_acl = true
 
-  # Public Network ACL rules
+  # Public Network ACL rules - Restricted to specific IP ranges
   public_inbound_acl_rules = [
     {
       rule_number = 100
@@ -48,8 +51,8 @@ module "vpc" {
       from_port   = 80
       to_port     = 80
       protocol    = "tcp"
-      cidr_block  = "0.0.0.0/0"
-      description = "Allow HTTP"
+      cidr_block  = var.allowed_public_ips  # Replace with your allowed IP range
+      description = "Allow HTTP from trusted sources"
     },
     {
       rule_number = 110
@@ -57,8 +60,8 @@ module "vpc" {
       from_port   = 443
       to_port     = 443
       protocol    = "tcp"
-      cidr_block  = "0.0.0.0/0"
-      description = "Allow HTTPS"
+      cidr_block  = var.allowed_public_ips  # Replace with your allowed IP range
+      description = "Allow HTTPS from trusted sources"
     },
     {
       rule_number = 120
@@ -66,8 +69,8 @@ module "vpc" {
       from_port   = 1024
       to_port     = 65535
       protocol    = "tcp"
-      cidr_block  = "0.0.0.0/0"
-      description = "Allow ephemeral ports"
+      cidr_block  = var.vpc_cidr
+      description = "Allow ephemeral ports from VPC"
     }
   ]
 
@@ -79,7 +82,7 @@ module "vpc" {
       to_port     = 80
       protocol    = "tcp"
       cidr_block  = "0.0.0.0/0"
-      description = "Allow HTTP"
+      description = "Allow HTTP outbound"
     },
     {
       rule_number = 110
@@ -88,7 +91,7 @@ module "vpc" {
       to_port     = 443
       protocol    = "tcp"
       cidr_block  = "0.0.0.0/0"
-      description = "Allow HTTPS"
+      description = "Allow HTTPS outbound"
     },
     {
       rule_number = 120
@@ -97,11 +100,11 @@ module "vpc" {
       to_port     = 65535
       protocol    = "tcp"
       cidr_block  = "0.0.0.0/0"
-      description = "Allow ephemeral ports"
+      description = "Allow ephemeral ports outbound"
     }
   ]
 
-  # Private Network ACL rules
+  # Private Network ACL rules - No changes needed as they're already restricted to VPC CIDR
   private_inbound_acl_rules = [
     {
       rule_number = 100
@@ -126,7 +129,7 @@ module "vpc" {
     }
   ]
 
-  # Database Network ACL rules
+  # Database Network ACL rules - No changes needed as they're already restricted to VPC CIDR
   database_inbound_acl_rules = [
     {
       rule_number = 100
