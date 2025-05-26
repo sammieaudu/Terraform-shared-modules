@@ -29,6 +29,128 @@ module "vpc" {
   enable_nat_gateway = true
   single_nat_gateway = true
 
+  # Enable VPC Flow Logs
+  enable_flow_log                      = true
+  create_flow_log_cloudwatch_log_group = true
+  create_flow_log_cloudwatch_iam_role  = true
+  flow_log_max_aggregation_interval    = 60
+
+  # Configure Network ACLs
+  public_dedicated_network_acl = true
+  private_dedicated_network_acl = true
+  database_dedicated_network_acl = true
+
+  # Public Network ACL rules
+  public_inbound_acl_rules = [
+    {
+      rule_number = 100
+      rule_action = "allow"
+      from_port   = 80
+      to_port     = 80
+      protocol    = "tcp"
+      cidr_block  = "0.0.0.0/0"
+      description = "Allow HTTP"
+    },
+    {
+      rule_number = 110
+      rule_action = "allow"
+      from_port   = 443
+      to_port     = 443
+      protocol    = "tcp"
+      cidr_block  = "0.0.0.0/0"
+      description = "Allow HTTPS"
+    },
+    {
+      rule_number = 120
+      rule_action = "allow"
+      from_port   = 1024
+      to_port     = 65535
+      protocol    = "tcp"
+      cidr_block  = "0.0.0.0/0"
+      description = "Allow ephemeral ports"
+    }
+  ]
+
+  public_outbound_acl_rules = [
+    {
+      rule_number = 100
+      rule_action = "allow"
+      from_port   = 80
+      to_port     = 80
+      protocol    = "tcp"
+      cidr_block  = "0.0.0.0/0"
+      description = "Allow HTTP"
+    },
+    {
+      rule_number = 110
+      rule_action = "allow"
+      from_port   = 443
+      to_port     = 443
+      protocol    = "tcp"
+      cidr_block  = "0.0.0.0/0"
+      description = "Allow HTTPS"
+    },
+    {
+      rule_number = 120
+      rule_action = "allow"
+      from_port   = 1024
+      to_port     = 65535
+      protocol    = "tcp"
+      cidr_block  = "0.0.0.0/0"
+      description = "Allow ephemeral ports"
+    }
+  ]
+
+  # Private Network ACL rules
+  private_inbound_acl_rules = [
+    {
+      rule_number = 100
+      rule_action = "allow"
+      from_port   = 0
+      to_port     = 65535
+      protocol    = "tcp"
+      cidr_block  = var.vpc_cidr
+      description = "Allow all internal traffic"
+    }
+  ]
+
+  private_outbound_acl_rules = [
+    {
+      rule_number = 100
+      rule_action = "allow"
+      from_port   = 0
+      to_port     = 65535
+      protocol    = "tcp"
+      cidr_block  = "0.0.0.0/0"
+      description = "Allow all outbound traffic"
+    }
+  ]
+
+  # Database Network ACL rules
+  database_inbound_acl_rules = [
+    {
+      rule_number = 100
+      rule_action = "allow"
+      from_port   = 0
+      to_port     = 65535
+      protocol    = "tcp"
+      cidr_block  = var.vpc_cidr
+      description = "Allow all internal traffic"
+    }
+  ]
+
+  database_outbound_acl_rules = [
+    {
+      rule_number = 100
+      rule_action = "allow"
+      from_port   = 0
+      to_port     = 65535
+      protocol    = "tcp"
+      cidr_block  = "0.0.0.0/0"
+      description = "Allow all outbound traffic"
+    }
+  ]
+
   # Optionally, define tags for greater clarity over subnet usage
   public_subnet_tags = {
     Type = "public",
