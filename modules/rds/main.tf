@@ -77,12 +77,17 @@ resource "aws_db_instance" "master" {
   backup_window                   = "03:00-06:00"
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
-  backup_retention_period = 1
-  skip_final_snapshot     = true
-  deletion_protection     = false
+  backup_retention_period = 7
+  skip_final_snapshot     = false
+  final_snapshot_identifier = "${local.name}-${var.rds_config[count.index].name}-final-snapshot"
+  deletion_protection     = true
+
+  storage_encrypted = true
+  kms_key_id       = aws_kms_key.rds_key.arn
 
   performance_insights_enabled          = true
   performance_insights_retention_period = 7
+  performance_insights_kms_key_id       = aws_kms_key.rds_key.arn
   monitoring_interval                   = 60
   monitoring_role_arn                   = aws_iam_role.rds_monitoring_role.arn
 
@@ -142,10 +147,12 @@ resource "aws_db_instance" "replica" {
   backup_window                   = "03:00-06:00"
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
-  backup_retention_period = 0
-  skip_final_snapshot     = true
-  deletion_protection     = false
-  storage_encrypted       = false
+  backup_retention_period = 7
+  skip_final_snapshot     = false
+  final_snapshot_identifier = "${local.name}-${each.value.name}-replica-final-snapshot"
+  deletion_protection     = true
+  storage_encrypted       = true
+  kms_key_id             = aws_kms_key.rds_key.arn
 
   parameter_group_name = aws_db_parameter_group.replica[each.key].name
 
@@ -238,4 +245,48 @@ module "rds_sg" {
       cidr_blocks = var.vpc_cidr
     },
   ]
+}
+
+# Create KMS key for RDS encryption
+resource "aws_kms_key" "rds_key" {
+  description             = "KMS key for RDS encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "Allow RDS to use the key"
+        Effect = "Allow"
+        Principal = {
+          Service = "rds.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = local.tags
+}
+
+resource "aws_kms_alias" "rds_key_alias" {
+  name          = "alias/${local.name}-rds-key"
+  target_key_id = aws_kms_key.rds_key.key_id
 }
