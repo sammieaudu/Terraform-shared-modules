@@ -78,6 +78,21 @@ data "aws_iam_policy_document" "mfa_enforcement" {
   }
 }
 
+# Create MFA enforcement policy for role assumption
+data "aws_iam_policy_document" "mfa_role_assumption" {
+  statement {
+    sid    = "EnforceMFARoleAssumption"
+    effect = "Deny"
+    actions = ["sts:AssumeRole"]
+    resources = ["*"]
+    condition {
+      test     = "BoolIfExists"
+      variable = "aws:MultiFactorAuthPresent"
+      values   = ["false"]
+    }
+  }
+}
+
 resource "aws_iam_policy" "mfa_policy" {
   name        = "MFAPolicy"
   description = "Policy to allow users to manage their own MFA devices"
@@ -88,6 +103,12 @@ resource "aws_iam_policy" "mfa_enforcement" {
   name        = "MFAEnforcementPolicy"
   description = "Policy to enforce MFA for all actions"
   policy      = data.aws_iam_policy_document.mfa_enforcement.json
+}
+
+resource "aws_iam_policy" "mfa_role_assumption" {
+  name        = "MFARoleAssumptionPolicy"
+  description = "Policy to enforce MFA for role assumption"
+  policy      = data.aws_iam_policy_document.mfa_role_assumption.json
 }
 
 #####################################################################################
