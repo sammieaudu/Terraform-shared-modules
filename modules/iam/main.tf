@@ -31,6 +31,42 @@ module "user_devops" {
   tags = local.tags
 }
 
+# Create MFA policy
+data "aws_iam_policy_document" "mfa_policy" {
+  statement {
+    sid    = "AllowUsersToManageTheirOwnMFA"
+    effect = "Allow"
+    actions = [
+      "iam:CreateVirtualMFADevice",
+      "iam:DeleteVirtualMFADevice",
+      "iam:EnableMFADevice",
+      "iam:ResyncMFADevice"
+    ]
+    resources = [
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:mfa/*",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/*"
+    ]
+  }
+
+  statement {
+    sid    = "AllowUsersToManageTheirOwnMFAConsole"
+    effect = "Allow"
+    actions = [
+      "iam:GetAccountPasswordPolicy",
+      "iam:GetAccountSummary",
+      "iam:ListVirtualMFADevices",
+      "iam:ListMFADevices"
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "mfa_policy" {
+  name        = "MFAPolicy"
+  description = "Policy to allow users to manage their own MFA devices"
+  policy      = data.aws_iam_policy_document.mfa_policy.json
+}
+
 #####################################################################################
 # IAM group for DevOps with full Administrator access
 #####################################################################################
@@ -41,7 +77,7 @@ module "iam_group_devops" {
 
   group_users = module.user_devops[*].iam_user_name
 
-  custom_group_policy_arns = var.devops_cgp_arn
+  custom_group_policy_arns = concat(var.devops_cgp_arn, [aws_iam_policy.mfa_policy.arn])
 
   depends_on = [ module.user_devops ]
 }
@@ -64,7 +100,8 @@ module "iam_group_developers" {
 
   name = "developers"
   group_users = module.user_developers[*].iam_user_name
-  custom_group_policy_arns = var.developer_cgp_arn
+  custom_group_policy_arns = concat(var.developer_cgp_arn, [aws_iam_policy.mfa_policy.arn])
+
   depends_on = [ module.user_developers ]
 }
 
@@ -88,7 +125,7 @@ module "eks_cluster_role" {
   role_name = "AmazonEKSClusterRole"
   create_role = true
   role_path = "/"
-  role_requires_mfa = false
+  role_requires_mfa = true
   trusted_role_services = ["eks.amazonaws.com"]
   custom_role_policy_arns = ["arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"]
 }
