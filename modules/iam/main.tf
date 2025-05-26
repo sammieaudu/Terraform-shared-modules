@@ -55,10 +55,26 @@ data "aws_iam_policy_document" "mfa_policy" {
     actions = [
       "iam:GetAccountPasswordPolicy",
       "iam:GetAccountSummary",
-      "iam:ListVirtualMFADevices",
-      "iam:ListMFADevices"
+      "iam:ListVirtualMFADevices"
     ]
+    resources = [
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/*"
+    ]
+  }
+}
+
+# Create MFA enforcement policy
+data "aws_iam_policy_document" "mfa_enforcement" {
+  statement {
+    sid    = "EnforceMFAAccess"
+    effect = "Deny"
+    actions = ["*"]
     resources = ["*"]
+    condition {
+      test     = "BoolIfExists"
+      variable = "aws:MultiFactorAuthPresent"
+      values   = ["false"]
+    }
   }
 }
 
@@ -66,6 +82,12 @@ resource "aws_iam_policy" "mfa_policy" {
   name        = "MFAPolicy"
   description = "Policy to allow users to manage their own MFA devices"
   policy      = data.aws_iam_policy_document.mfa_policy.json
+}
+
+resource "aws_iam_policy" "mfa_enforcement" {
+  name        = "MFAEnforcementPolicy"
+  description = "Policy to enforce MFA for all actions"
+  policy      = data.aws_iam_policy_document.mfa_enforcement.json
 }
 
 #####################################################################################
@@ -78,7 +100,10 @@ module "iam_group_devops" {
 
   group_users = module.user_devops[*].iam_user_name
 
-  custom_group_policy_arns = concat(var.devops_cgp_arn, [aws_iam_policy.mfa_policy.arn])
+  custom_group_policy_arns = concat(var.devops_cgp_arn, [
+    aws_iam_policy.mfa_policy.arn,
+    aws_iam_policy.mfa_enforcement.arn
+  ])
 
   depends_on = [ module.user_devops ]
 }
@@ -101,7 +126,10 @@ module "iam_group_developers" {
 
   name = "developers"
   group_users = module.user_developers[*].iam_user_name
-  custom_group_policy_arns = concat(var.developer_cgp_arn, [aws_iam_policy.mfa_policy.arn])
+  custom_group_policy_arns = concat(var.developer_cgp_arn, [
+    aws_iam_policy.mfa_policy.arn,
+    aws_iam_policy.mfa_enforcement.arn
+  ])
 
   depends_on = [ module.user_developers ]
 }
