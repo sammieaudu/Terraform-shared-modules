@@ -19,6 +19,15 @@ module "eks" {
     enabled = true
   }
 
+  # Enable control plane logging
+  cluster_enabled_log_types = [
+    "api",
+    "audit",
+    "authenticator",
+    "controllerManager",
+    "scheduler"
+  ]
+
   vpc_id     = var.eks_vpc
   control_plane_subnet_ids = var.eks_private_subnets
   subnet_ids = var.eks_private_subnets
@@ -59,10 +68,51 @@ module "eks" {
       min_size = 2
       max_size = 5
       desired_size = 2
+
+      # Restrict node group security group egress
+      vpc_security_group_ids = [aws_security_group.node_group.id]
     }
   }
 
   tags = local.tags
+}
+
+# Create restricted security group for node groups
+resource "aws_security_group" "node_group" {
+  name_prefix = "${local.name}-node-group-"
+  description = "Security group for EKS node groups"
+  vpc_id      = var.eks_vpc
+
+  egress {
+    description = "Allow HTTPS to AWS services"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow DNS"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow NTP"
+    from_port   = 123
+    to_port     = 123
+    protocol    = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(
+    local.tags,
+    {
+      Name = "${local.name}-node-group-sg"
+    }
+  )
 }
 
 ###############################
@@ -72,6 +122,7 @@ data "aws_eks_cluster_auth" "cluster" {
   name = module.eks.cluster_name
   depends_on = [ module.eks ]
 }
+
 ###############################
 # OIDC Provider Data Source for IRSA
 ###############################
