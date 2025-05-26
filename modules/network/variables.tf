@@ -33,3 +33,9 @@ variable "database_subnets" {
   description = "RDS subnets for services needing extra segmentation like RDS"
   type        = list(string)
 }
+
+variable "allowed_public_ips" {
+  description = "List of IP ranges allowed to access public subnets (e.g., corporate IP ranges)"
+  type        = string
+  default     = "0.0.0.0/0"  # Default to all IPs, but should be restricted in production
+}

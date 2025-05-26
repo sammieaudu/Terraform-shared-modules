@@ -46,21 +46,17 @@ data "aws_secretsmanager_secret_version" "rds_secret_version" {
 }
 
 ################################################################################
-# RDS Module
+# RDS Instance
 ################################################################################
 
 data "aws_caller_identity" "current" {}
 
-module "master" {
-  source = "terraform-aws-modules/rds/aws"
-
+resource "aws_db_instance" "master" {
   count = length(var.rds_config)
 
   identifier = "${local.name}-${var.rds_config[count.index].name}-master"
   engine                   = var.rds_config[count.index].engine
   engine_version           = var.rds_config[count.index].engine_version
-  family                   = var.rds_config[count.index].family
-  major_engine_version     = var.rds_config[count.index].major_engine_version
   instance_class           = var.rds_config[count.index].instance_class
 
   allow_major_version_upgrade = true
@@ -73,8 +69,6 @@ module "master" {
   password = local.rds_credentials["password"]
   port     = var.rds_config[count.index].port
 
-  manage_master_user_password = false
-
   multi_az               = true
   db_subnet_group_name   = var.database_subnet_group
   vpc_security_group_ids = [module.rds_sg.security_group_id]
@@ -82,54 +76,67 @@ module "master" {
   maintenance_window              = "Mon:00:00-Mon:03:00"
   backup_window                   = "03:00-06:00"
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
-  create_cloudwatch_log_group     = true
 
-  backup_retention_period = 1
-  skip_final_snapshot     = true
-  deletion_protection     = false
+  backup_retention_period = 7
+  skip_final_snapshot     = false
+  final_snapshot_identifier = "${local.name}-${var.rds_config[count.index].name}-final-snapshot"
+  deletion_protection     = true
+
+  storage_encrypted = true
+  kms_key_id       = aws_kms_key.rds_key.arn
 
   performance_insights_enabled          = true
   performance_insights_retention_period = 7
-  create_monitoring_role = false
+  performance_insights_kms_key_id       = aws_kms_key.rds_key.arn
   monitoring_interval                   = 60
-  monitoring_role_arn = aws_iam_role.rds_monitoring_role.arn
+  monitoring_role_arn                   = aws_iam_role.rds_monitoring_role.arn
 
-  parameters = [
-    {
-      name  = "autovacuum"
-      value = 1
-    },
-    {
-      name  = "client_encoding"
-      value = "utf8"
-    }
-  ]
+  parameter_group_name = aws_db_parameter_group.master[count.index].name
 
   tags = local.tags
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes = [
+      username,
+      password,
+      performance_insights_retention_period,
+      backup_retention_period,
+      monitoring_interval,
+      parameter_group_name
+    ]
+  }
 
   depends_on = [module.rds_sg, aws_iam_role.rds_monitoring_role]
 }
 
-################################################################################
-# Replica DB
-################################################################################
+resource "aws_db_parameter_group" "master" {
+  count = length(var.rds_config)
 
-module "replica" {
-  source = "terraform-aws-modules/rds/aws"
+  name   = "${local.name}-${var.rds_config[count.index].name}-master"
+  family = var.rds_config[count.index].family
 
+  parameter {
+    name  = "autovacuum"
+    value = "1"
+  }
+
+  parameter {
+    name  = "client_encoding"
+    value = "utf8"
+  }
+
+  tags = local.tags
+}
+
+resource "aws_db_instance" "replica" {
   for_each = { for idx, config in var.rds_config : config.name => config if config.replica }
 
   identifier = "${local.name}-${each.value.name}-replica"
-  create_db_instance        = each.value.replica
-  create_db_parameter_group = each.value.replica
-  create_db_option_group    = each.value.replica
-
-  # Source database. For cross-region use db_instance_arn
-  replicate_source_db = local.master_map[each.value.name].db_instance_identifier
+  replicate_source_db = aws_db_instance.master[index(var.rds_config, each.value)].identifier
 
   engine               = each.value.engine
   engine_version       = each.value.engine_version
-  family = each.value.family 
   instance_class       = each.value.instance_class
   port                = each.value.port
 
@@ -140,14 +147,47 @@ module "replica" {
   backup_window                   = "03:00-06:00"
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
-  backup_retention_period = 0
-  skip_final_snapshot     = true
-  deletion_protection     = false
-  storage_encrypted       = false
+  backup_retention_period = 7
+  skip_final_snapshot     = false
+  final_snapshot_identifier = "${local.name}-${each.value.name}-replica-final-snapshot"
+  deletion_protection     = true
+  storage_encrypted       = true
+  kms_key_id             = aws_kms_key.rds_key.arn
+
+  parameter_group_name = aws_db_parameter_group.replica[each.key].name
 
   tags = local.tags
 
-  depends_on = [module.master, module.rds_sg]
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes = [
+      performance_insights_retention_period,
+      backup_retention_period,
+      monitoring_interval,
+      parameter_group_name
+    ]
+  }
+
+  depends_on = [aws_db_instance.master, module.rds_sg]
+}
+
+resource "aws_db_parameter_group" "replica" {
+  for_each = { for idx, config in var.rds_config : config.name => config if config.replica }
+
+  name   = "${local.name}-${each.value.name}-replica"
+  family = each.value.family
+
+  parameter {
+    name  = "autovacuum"
+    value = "1"
+  }
+
+  parameter {
+    name  = "client_encoding"
+    value = "utf8"
+  }
+
+  tags = local.tags
 }
 
 ################################################################################
@@ -176,12 +216,12 @@ module "rds_secret_rotate" {
     secret_manager_name = "${local.name}-${each.value.name}-rds-secret"
     lambda_role_arn = [module.lambda_rds.lambda_role_arn]
     lambda_function_arn = module.lambda_rds.lambda_function_arn
-    engine = local.master_map[each.value.name].db_instance_engine
-    host = local.master_map[each.value.name].db_instance_endpoint
-    dbname = local.master_map[each.value.name].db_instance_name
+    engine = aws_db_instance.master[index(var.rds_config, each.value)].engine
+    host = aws_db_instance.master[index(var.rds_config, each.value)].endpoint
+    dbname = aws_db_instance.master[index(var.rds_config, each.value)].db_name
     username = try(local.rds_credentials["username"])
     password = try(local.rds_credentials["password"])
-    port = local.master_map[each.value.name].db_instance_port
+    port = aws_db_instance.master[index(var.rds_config, each.value)].port
     rotation_rule = var.password_rotation_rules
 
     depends_on = [ module.lambda_rds ]
@@ -205,5 +245,48 @@ module "rds_sg" {
       cidr_blocks = var.vpc_cidr
     },
   ]
-  
+}
+
+# Create KMS key for RDS encryption
+resource "aws_kms_key" "rds_key" {
+  description             = "KMS key for RDS encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "Allow RDS to use the key"
+        Effect = "Allow"
+        Principal = {
+          Service = "rds.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = local.tags
+}
+
+resource "aws_kms_alias" "rds_key_alias" {
+  name          = "alias/${local.name}-rds-key"
+  target_key_id = aws_kms_key.rds_key.key_id
 }

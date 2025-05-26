@@ -1,4 +1,3 @@
-
 module "lambda" {
   source  = "terraform-aws-modules/lambda/aws"
   version = "~> 6.0"
@@ -23,6 +22,10 @@ module "lambda" {
   }
 
   cloudwatch_logs_retention_in_days = 7
+
+  # Enable X-Ray tracing
+  attach_tracing_policy = true
+  tracing_mode         = "Active"
 
   tags = local.tags
 }
