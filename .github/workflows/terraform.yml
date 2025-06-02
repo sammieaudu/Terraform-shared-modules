@@ -369,16 +369,16 @@ jobs:
           fi
 
       # 7. Apply Terraform changes
-      - name: Terraform Apply
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
-        id: tf_apply
-        run: |
-          cd environments/${{ matrix.env.account }}
-          if terraform apply -auto-approve; then
-            echo "✅ Terraform apply succeeded"
-          else
-            echo "❌ Terraform apply failed"
-            terraform state rm module.s3
-            terraform destroy -auto-approve
-            exit 1
-          fi
+      # - name: Terraform Apply
+      #   if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+      #   id: tf_apply
+      #   run: |
+      #     cd environments/${{ matrix.env.account }}
+      #     if terraform apply -auto-approve; then
+      #       echo "✅ Terraform apply succeeded"
+      #     else
+      #       echo "❌ Terraform apply failed"
+      #       terraform state rm module.s3
+      #       terraform destroy -auto-approve
+      #       exit 1
+      #     fi
