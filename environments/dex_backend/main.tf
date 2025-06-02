@@ -101,3 +101,15 @@ module "amplify" {
   amp_config   = var.amp_config
   custom_rules = var.amp_custom_rules
 }
+
+################################################
+# Redis Elasticache
+################################################
+module "redis" {
+  source              = "../../modules/elasticache"
+  env                 = var.env
+  region              = var.region
+  database_subnet_ids = module.network.database_subnets
+  vpc_id              = module.network.vpc_id
+  vpc_cidr            = module.network.vpc_cidr_block
+}

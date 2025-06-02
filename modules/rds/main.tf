@@ -234,7 +234,7 @@ module "rds_sg" {
     source = "../sg"
     env = var.env
     sg_name = "${local.name}-rds-master-sg"
-    sg_description = "Complete PostgreSQL example security group"
+    sg_description = "Complete PostgreSQL security group"
     vpc_id = var.vpc_id
     ingress_with_cidr_blocks = [
     {
