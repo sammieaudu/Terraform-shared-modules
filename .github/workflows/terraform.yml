@@ -155,7 +155,7 @@ jobs:
           working_directory: environments/${{ matrix.env.account }}
           soft_fail: true
           format: json
-          additional_args: --out tfsec-results.json
+          additional_args: --out environments/${{ matrix.env.account }}/tfsec-results.json
 
       # 7. Initialize Terraform
       - name: Terraform Init
@@ -243,7 +243,7 @@ jobs:
             // 3. Read tfsec results if they exist
             let tfsecOutput = '';
             try {
-              const tfsecResults = JSON.parse(fs.readFileSync('tfsec-results.json', 'utf8'));
+              const tfsecResults = JSON.parse(fs.readFileSync('environments/${{ matrix.env.account }}/tfsec-results.json', 'utf8'));
               if (tfsecResults.results && tfsecResults.results.length > 0) {
                 tfsecOutput = '\n\n#### tfsec Security Scan 🔒\n\n';
                 tfsecResults.results.forEach(result => {
@@ -251,9 +251,12 @@ jobs:
                   tfsecOutput += `  - Severity: ${result.severity}\n`;
                   tfsecOutput += `  - Location: ${result.location.filename}:${result.location.start_line}\n\n`;
                 });
+              } else {
+                tfsecOutput = '\n\n#### tfsec Security Scan 🔒\n\n✅ No security issues found.';
               }
             } catch (e) {
-              // If file doesn't exist or is invalid JSON, ignore
+              tfsecOutput = '\n\n#### tfsec Security Scan 🔒\n\n⚠️ Unable to read tfsec results.';
+              console.error('Error reading tfsec results:', e);
             }
 
             // 4. Prepare format of the comment
@@ -366,14 +369,16 @@ jobs:
           fi
 
       # 7. Apply Terraform changes
-      - name: Terraform Apply
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
-        id: tf_apply
-        run: |
-          cd environments/${{ matrix.env.account }}
-          if terraform apply -auto-approve; then
-            echo "✅ Terraform apply succeeded"
-          else
-            echo "❌ Terraform apply failed"
-            exit 1
-          fi
+      # - name: Terraform Apply
+      #   if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+      #   id: tf_apply
+      #   run: |
+      #     cd environments/${{ matrix.env.account }}
+      #     if terraform apply -auto-approve; then
+      #       echo "✅ Terraform apply succeeded"
+      #     else
+      #       echo "❌ Terraform apply failed"
+      #       terraform state rm module.s3
+      #       terraform destroy -auto-approve
+      #       exit 1
+      #     fi
